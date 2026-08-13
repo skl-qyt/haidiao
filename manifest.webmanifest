@@ -2,7 +2,7 @@
   "name": "海钓时刻助手 · 广西沿海",
   "short_name": "海钓时刻",
   "description": "选城市选钓点，潮水/风向/水温自动算出明天最该下竿的 3 小时",
-  "start_url": "海钓时刻助手.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",

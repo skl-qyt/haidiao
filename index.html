@@ -1865,5 +1865,11 @@ init();
 
 
 
+<script>
+/* PWA：注册 Service Worker，实现离线可用与桌面安装 */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
+}
+</script>
 </body>
 </html>

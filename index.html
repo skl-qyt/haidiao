@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#081318">
+<meta name="description" content="选城市选钓点，潮水/风向/水温自动算出明天最该下竿的 3 小时。广西沿海（北海/防城港/钦州）海钓智能推荐。">
+<!-- PWA：添加到主屏幕后全屏打开 -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="海钓时刻">
+<!-- 分享预览（微信/QQ/微博转发时显示） -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="海钓时刻助手 · 明天几点去钓鱼？">
+<meta property="og:description" content="选城市 · 选钓点，潮水/风向/水温自动算出明天最该下竿的 3 小时。广西沿海 · 北海/防城港/钦州。">
+<meta property="og:image" content="og-cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<title>海钓时刻助手 · 广西沿海智能钓鱼推荐系统</title>
+<style>
+/* ============ 设计系统：深海墨底 + 磷光青 + 暖沙金 ============ */
+:root{
+  --bg:#081318;
+  --bg2:#0B1B23;
+  --panel:#0F232E;
+  --panel2:#122A37;
+  --line:#1E3B47;
+  --line2:#2A4D5B;
+  --ink:#EAF3EF;
+  --mut:#8DA8B1;
+  --dim:#5F7A84;
+  --teal:#35D7B6;
+  --teal-dim:#1E7A68;
+  --sand:#E9B44C;
+  --red:#F26157;
+  --green:#4FC98A;
+  --yellow:#E9C44C;
+  --radius:14px;
+  --mono:"SF Mono",Menlo,Consolas,"Courier New",monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse 70% 38% at 50% -6%, rgba(53,215,182,.07), transparent 65%),
+    radial-gradient(ellipse 55% 32% at 88% 108%, rgba(18,52,66,.55), transparent 62%);
+  background-attachment:fixed;
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  line-height:1.7;
+  overflow-x:hidden;
+}
+::selection{background:var(--teal-dim);color:#fff}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:5px;border:2px solid var(--bg)}
+::-webkit-scrollbar-track{background:transparent}
+:focus-visible{outline:2px solid var(--teal-dim);outline-offset:2px}
+canvas{display:block;max-width:100%;height:auto}
+/* grid 防撑破：fr 轨道一律 minmax(0,…)，切断 min-content 传递（潮汐 canvas 曾把整页撑到 1066px） */
+button{font-family:inherit;cursor:pointer}
+input,select{font-family:inherit}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:rgba(8,19,24,.88);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+  box-shadow:0 10px 30px rgba(0,0,0,.3);
+  display:flex;align-items:center;gap:18px;
+  padding:10px 22px;
+  flex-wrap:wrap;
+}
+.brand{display:flex;align-items:baseline;gap:10px;white-space:nowrap}
+.brand .logo{
+  font-size:20px;font-weight:800;letter-spacing:1px;color:var(--teal);
+}
+.brand .sub{font-size:11px;color:var(--mut);letter-spacing:2px}
+.nav{display:flex;gap:2px;flex-wrap:wrap;flex:1}
+.nav a{
+  color:var(--mut);text-decoration:none;font-size:12.5px;
+  padding:5px 9px;border-radius:7px;transition:.15s;white-space:nowrap;
+}
+.nav a:hover{color:var(--teal);background:var(--panel)}
+
+/* ---------- 首屏 ---------- */
+.hero{
+  padding:78px 24px 46px;text-align:center;
+  background:
+    radial-gradient(ellipse 55% 42% at 50% 0%,rgba(53,215,182,.13),transparent 70%);
+}
+.hero h1{
+  font-size:clamp(32px,5.6vw,52px);font-weight:800;letter-spacing:3px;line-height:1.32;
+}
+.hero h1 em{
+  font-style:normal;color:var(--teal);
+  text-shadow:0 0 42px rgba(53,215,182,.4);
+}
+.hero p{color:var(--mut);max-width:640px;margin:16px auto 0;font-size:15px}
+.hero-stats{
+  display:flex;justify-content:center;gap:44px;margin-top:34px;flex-wrap:wrap;
+}
+.hero-stats .hs{text-align:center;position:relative}
+.hero-stats .hs+.hs::before{
+  content:"";position:absolute;left:-22px;top:12%;bottom:12%;width:1px;background:var(--line);
+}
+.hero-stats .hs b{font-size:26px;color:var(--sand);font-family:var(--mono);text-shadow:0 0 24px rgba(233,180,76,.25)}
+.hero-stats .hs span{display:block;font-size:12px;color:var(--dim);letter-spacing:1px;margin-top:2px}
+
+/* ---------- 模块零：明日决策问答 ---------- */
+#s0{padding-top:20px}
+.wizard{
+  background:linear-gradient(180deg,var(--panel2),var(--panel));
+  border:1px solid var(--line2);border-radius:20px;padding:26px;
+  box-shadow:0 18px 50px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.03);
+}
+.wz-step{margin-bottom:18px}
+.wz-label{font-size:13px;color:var(--mut);margin-bottom:8px;letter-spacing:1px}
+.wz-label b{color:var(--teal)}
+.seg-btns.big button{padding:10px 22px;font-size:15px;border-radius:11px}
+.wz-result{
+  margin-top:6px;border-top:1px dashed var(--line2);padding-top:18px;
+}
+.answer-main{
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  background:
+    radial-gradient(ellipse 60% 120% at 8% 0%,rgba(53,215,182,.14),transparent 60%),
+    rgba(53,215,182,.06);
+  border:1px solid var(--teal-dim);
+  border-radius:16px;padding:22px 24px;
+  box-shadow:0 10px 36px rgba(53,215,182,.08);
+}
+.answer-main .when{
+  font-family:var(--mono);font-size:clamp(30px,5.2vw,44px);font-weight:800;color:var(--teal);
+  white-space:nowrap;text-shadow:0 0 30px rgba(53,215,182,.35);letter-spacing:1px;
+}
+.answer-main .meta{flex:1;min-width:180px}
+.answer-main .meta b{font-size:15px}
+.answer-main .meta span{display:block;font-size:12.5px;color:var(--mut);margin-top:2px}
+.answer-score{text-align:center}
+.answer-score .n{font-family:var(--mono);font-size:34px;font-weight:800;color:var(--sand);line-height:1}
+.answer-score .l{font-size:11px;color:var(--dim);letter-spacing:1px}
+.answer-why{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:12px}
+@media(max-width:720px){.answer-why{grid-template-columns:minmax(0,1fr)}}
+.why-item{border:1px solid var(--line);border-radius:11px;padding:12px 14px;background:var(--bg2)}
+.why-item .t{font-size:12px;color:var(--dim);letter-spacing:1px}
+.why-item .v{font-size:13.5px;margin-top:4px;line-height:1.6}
+.answer-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:13px}
+.answer-row .pill{border:1px solid var(--line2);border-radius:999px;padding:6px 14px;color:var(--mut)}
+.answer-row .pill b{color:var(--ink)}
+.answer-acts{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+#wzShareCanvas{border-radius:12px;border:1px solid var(--line2);width:100%;max-width:320px;height:auto;margin-top:14px}
+
+/* ---------- 通用区块 ---------- */
+.wrap{max-width:1200px;margin:0 auto;padding:0 20px}
+section{padding:62px 0 24px}
+.sec-head{margin-bottom:28px;position:relative;padding-left:16px}
+.sec-head::before{
+  content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:2px;
+  background:linear-gradient(180deg,var(--teal),rgba(53,215,182,.05));
+}
+.sec-no{
+  font-family:var(--mono);font-size:12px;color:var(--teal);letter-spacing:3px;
+}
+.sec-head h2{font-size:26px;font-weight:800;letter-spacing:1px;margin-top:2px}
+.sec-head .desc{color:var(--mut);font-size:13.5px;margin-top:6px;max-width:720px}
+.nx{ /* 新手解释块：老手模式隐藏 */
+  border-left:3px solid var(--teal-dim);
+  background:rgba(53,215,182,.06);
+  padding:10px 14px;border-radius:0 10px 10px 0;
+  font-size:13px;color:var(--mut);margin:10px 0;
+}
+.term{
+  border-bottom:1px dashed var(--teal-dim);cursor:help;position:relative;color:var(--teal);
+}
+.term::after{
+  content:attr(data-tip);
+  position:absolute;left:50%;bottom:130%;transform:translateX(-50%);
+  background:var(--panel2);border:1px solid var(--line2);color:var(--ink);
+  font-size:12px;padding:8px 12px;border-radius:8px;width:230px;
+  opacity:0;pointer-events:none;transition:.15s;z-index:50;line-height:1.5;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);
+}
+.term:hover::after{opacity:1}
+
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.018),transparent 32%),var(--panel);
+  border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px;
+  box-shadow:0 6px 22px rgba(0,0,0,.2);
+}
+
+.tag{
+  display:inline-block;font-size:11px;padding:2px 9px;border-radius:999px;
+  border:1px solid var(--line2);color:var(--mut);letter-spacing:1px;
+}
+.tag.teal{color:var(--teal);border-color:var(--teal-dim)}
+.tag.sand{color:var(--sand);border-color:#6B5522}
+.tag.red{color:var(--red);border-color:#6E2E2A}
+.tag.green{color:var(--green);border-color:#245C41}
+
+/* ---------- 模块二：地图 ---------- */
+.map-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:900px){.map-layout{grid-template-columns:minmax(0,1fr)}}
+.map-box{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:10px}
+.map-legend{display:flex;gap:14px;flex-wrap:wrap;padding:8px 6px 2px;font-size:12px;color:var(--mut)}
+.map-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+.city-head{
+  display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;
+  padding:10px 4px;font-weight:700;font-size:15px;
+}
+.city-head .arrow{transition:.2s;color:var(--teal);font-size:12px}
+.city-head.closed .arrow{transform:rotate(-90deg)}
+.spot-item{
+  border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:6px 0;
+  cursor:pointer;transition:.15s;background:var(--panel);
+}
+.spot-item:hover{border-color:var(--teal-dim);transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.spot-item.sel{border-color:var(--teal);background:rgba(53,215,182,.07)}
+.spot-item .top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.spot-item .top b{font-size:14.5px}
+.spot-item .meta{font-size:12px;color:var(--mut);margin-top:4px}
+.spot-item .cmp{float:right;display:flex;align-items:center;gap:5px;font-size:12px;color:var(--dim)}
+.spot-detail{margin-top:14px}
+.spot-detail h4{font-size:17px;color:var(--teal)}
+.kv{display:grid;grid-template-columns:86px minmax(0,1fr);gap:4px 12px;font-size:13px;margin-top:10px}
+.kv dt{color:var(--dim)}
+.kv dd{color:var(--ink)}
+.stars{color:var(--sand);letter-spacing:2px}
+.danger-pip{display:inline-flex;gap:3px}
+.danger-pip i{width:14px;height:6px;border-radius:3px;background:var(--line2)}
+.danger-pip i.on1{background:var(--green)}
+.danger-pip i.on2{background:var(--yellow)}
+.danger-pip i.on3{background:var(--red)}
+.compare-bar{display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap}
+.btn{
+  background:var(--teal);color:#06231C;border:0;border-radius:9px;
+  padding:9px 18px;font-size:13.5px;font-weight:700;transition:.15s;
+  box-shadow:0 4px 16px rgba(53,215,182,.16);
+}
+.btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.ghost{background:transparent;border:1px solid var(--line2);color:var(--mut);box-shadow:none}
+.btn.ghost:hover{color:var(--teal);border-color:var(--teal-dim)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.compare-table{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+.compare-table th,.compare-table td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+.compare-table th{background:var(--bg2);color:var(--mut);font-weight:600}
+.fitbar{height:8px;border-radius:4px;background:var(--bg);overflow:hidden;min-width:90px}
+.fitbar i{display:block;height:100%;border-radius:4px;background:var(--teal)}
+
+/* ---------- 模块三：潮汐 ---------- */
+.cal-strip{display:flex;gap:8px;overflow-x:auto;padding:12px 2px;scrollbar-width:thin}
+.cal-day{
+  flex:0 0 76px;background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:10px 6px;text-align:center;
+}
+.cal-day.today{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal-dim),0 0 18px rgba(53,215,182,.12)}
+.cal-day .d{font-size:12px;color:var(--mut)}
+.cal-day .l{font-size:11px;color:var(--dim);margin-top:2px}
+.cal-day .t{margin-top:6px;font-size:11px;font-weight:700;padding:2px 0;border-radius:6px}
+.cal-day .t.big{background:rgba(233,180,76,.15);color:var(--sand)}
+.cal-day .t.mid{background:rgba(53,215,182,.12);color:var(--teal)}
+.cal-day .t.small{background:rgba(141,168,177,.12);color:var(--mut)}
+
+/* ---------- 现在潮位卡 ---------- */
+.now-tide{
+  display:grid;grid-template-columns:auto 1fr auto;gap:20px;align-items:center;
+  background:linear-gradient(135deg,var(--panel2),var(--panel));
+  border:1px solid var(--line2);border-radius:var(--radius);
+  padding:16px 22px;margin-bottom:16px;
+}
+.now-tide .lv-num{font-family:var(--mono);font-size:42px;font-weight:800;color:var(--teal);line-height:1;white-space:nowrap}
+.now-tide .lv-num small{font-size:15px;color:var(--mut);font-weight:400}
+.now-tide .lv-cap{font-size:11.5px;color:var(--dim);margin-top:4px;letter-spacing:1px}
+.nt-mid b{font-size:15.5px}
+.nt-bar{height:6px;border-radius:3px;background:var(--bg);overflow:hidden;margin:8px 0 6px}
+.nt-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--teal-dim),var(--teal));transition:width .6s}
+.nt-mid .sub{font-size:12.5px;color:var(--mut)}
+.nt-next{text-align:right;white-space:nowrap}
+.nt-next .cd{font-family:var(--mono);font-size:23px;font-weight:800;color:var(--sand)}
+.nt-next .lbl{font-size:11.5px;color:var(--dim)}
+@media(max-width:720px){
+  .now-tide{grid-template-columns:minmax(0,1fr);text-align:center;gap:10px;padding:16px}
+  .nt-next{text-align:center}
+}
+
+/* ---------- 逐日潮汐表 ---------- */
+.tide-table{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+.tide-table th,.tide-table td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.tide-table th{color:var(--dim);font-weight:600;font-size:11.5px;letter-spacing:1px}
+.tide-table .mono{font-family:var(--mono)}
+.tide-table tr.today td{background:rgba(53,215,182,.05)}
+
+/* ---------- 共享控件 ---------- */
+.slider-row{margin:14px 0}
+.slider-row label{display:flex;justify-content:space-between;font-size:13px;color:var(--mut);margin-bottom:5px}
+.slider-row label b{color:var(--ink);font-family:var(--mono)}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;height:6px;border-radius:3px;
+  background:var(--bg);outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:18px;height:18px;border-radius:50%;
+  background:var(--teal);border:3px solid #06231C;box-shadow:0 0 0 1px var(--teal-dim);
+}
+input[type=range]::-moz-range-thumb{
+  width:12px;height:12px;border-radius:50%;background:var(--teal);
+  border:3px solid #06231C;box-shadow:0 0 0 1px var(--teal-dim);
+}
+.slider-row input[type=range]{width:100%}
+.seg-btns{display:flex;gap:6px;flex-wrap:wrap}
+.seg-btns button{
+  background:var(--bg);border:1px solid var(--line2);color:var(--mut);
+  border-radius:8px;padding:5px 12px;font-size:12.5px;transition:.12s;
+}
+.seg-btns button.on{background:rgba(53,215,182,.14);border-color:var(--teal-dim);color:var(--teal);font-weight:700}
+.seg-btns button:active,.day-tabs button:active,.month-tabs button:active{transform:scale(.94)}
+
+/* ---------- 模块五：曲线 ---------- */
+.chart-box{background:var(--bg2);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.day-tabs{display:flex;gap:8px;margin-bottom:14px}
+.day-tabs button{
+  background:var(--panel);border:1px solid var(--line);color:var(--mut);
+  border-radius:9px;padding:7px 18px;font-size:13.5px;transition:.15s;
+}
+.day-tabs button.on{border-color:var(--teal);color:var(--teal);font-weight:700;background:rgba(53,215,182,.08)}
+.window-chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.wchip{
+  border:1px solid var(--line2);border-radius:10px;padding:8px 14px;font-size:13px;
+}
+.wchip.main{border-color:var(--teal);background:rgba(53,215,182,.1)}
+.wchip b{font-family:var(--mono);color:var(--teal)}
+.wchip.main b{color:var(--teal)}
+.wchip.alt b{color:var(--sand)}
+.wchip .rs{font-size:11.5px;color:var(--mut);display:block}
+
+/* ---------- 模块八：鱼种 ---------- */
+.month-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+.month-tabs button{
+  width:44px;height:36px;border-radius:9px;border:1px solid var(--line);
+  background:var(--panel);color:var(--mut);font-size:13px;font-family:var(--mono);transition:.12s;
+}
+.month-tabs button.on{border-color:var(--sand);color:var(--sand);font-weight:700;background:rgba(233,180,76,.08)}
+.fish-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.fish-card{
+  border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--panel);
+  cursor:pointer;transition:.15s;
+}
+.fish-card:hover{border-color:var(--teal-dim);transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.fish-card .fh{display:flex;align-items:center;gap:8px}
+.fish-card .fh b{font-size:15px}
+.fish-card .fd{display:none;margin-top:10px;font-size:12.5px;color:var(--mut);border-top:1px dashed var(--line2);padding-top:10px}
+.fish-card.open .fd{display:block}
+.fish-card .fd .kv{grid-template-columns:70px 1fr;font-size:12.5px}
+
+/* ---------- 模块九：装备 ---------- */
+.gear-layout{display:grid;grid-template-columns:280px minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:860px){.gear-layout{grid-template-columns:minmax(0,1fr)}}
+.drawer{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--panel);overflow:hidden}
+.drawer-head{padding:13px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:14px;user-select:none}
+.drawer-head .arrow{color:var(--dim);font-size:12px;transition:.2s}
+.drawer.open .drawer-head .arrow{transform:rotate(180deg)}
+.drawer-body{display:none;padding:0 16px 14px}
+.drawer.open .drawer-body{display:block}
+.gear-item{display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--mut);padding:5px 0}
+.gear-item::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--teal);margin-top:8px;flex-shrink:0}
+.gear-item.must::before{background:var(--red)}
+.copy-ok{color:var(--green);font-size:12.5px;margin-left:10px}
+
+
+/* ---------- 鱼种月度热力图 ---------- */
+.hm{display:grid;grid-template-columns:58px repeat(12,minmax(0,1fr));gap:2px;margin:4px 0 14px}
+.hm .hl{font-size:10.5px;color:var(--mut);line-height:16px;white-space:nowrap;overflow:hidden}
+.hm .hd{font-size:10px;color:var(--dim);text-align:center;line-height:16px;cursor:pointer;border-radius:3px}
+.hm .hd.cur{color:var(--sand);font-weight:700}
+.hm .hd.sel{color:var(--teal);font-weight:700}
+.hm .hc{height:16px;border-radius:3px;background:#122A37;cursor:pointer;transition:.1s}
+.hm .hc:hover{outline:1px solid var(--teal-dim)}
+.hm .hc.in{background:rgba(53,215,182,.55)}
+.hm .hc.cur{outline:1px solid rgba(233,180,76,.5)}
+.hm-legend{font-size:11px;color:var(--dim);margin-bottom:8px}
+
+/* ---------- 模块六：作钓记录 ---------- */
+.log-form{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.log-form input[type=date],.log-form select{background:var(--bg);border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:13.5px}
+.log-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:var(--panel);font-size:13px}
+.log-del{background:none;border:0;color:var(--dim);font-size:16px;cursor:pointer;padding:0 4px}
+.log-del:hover{color:var(--red)}
+@media(max-width:640px){.log-form>*{flex:1 1 40%}}
+
+/* ---------- 表格横向滚动 ---------- */
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.table-scroll .compare-table{min-width:560px}
+
+/* ---------- 页脚 ---------- */
+footer{
+  margin-top:70px;border-top:1px solid var(--line);padding:30px 20px 46px;
+  text-align:center;color:var(--dim);font-size:12.5px;
+}
+footer .wrap{max-width:760px}
+footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radius:5px;font-size:11.5px}
+
+/* ---------- 平板（≤1024px）：导航变横向滚动条 ---------- */
+@media(max-width:1024px){
+  .topbar{gap:10px;padding:10px 14px}
+  .nav{order:3;flex:1 1 100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  .nav a{flex-shrink:0}
+}
+
+/* ---------- 大屏（≥1500px）：更宽更舒适 ---------- */
+@media(min-width:1500px){
+  .wrap{max-width:1360px}
+  body{font-size:17px}
+}
+
+/* ---------- 手机（≤720px） ---------- */
+@media(max-width:720px){
+  section{padding:40px 0 14px}
+  .wrap{padding:0 14px}
+  .sec-head h2{font-size:22px}
+  .sec-head .desc{font-size:12.5px}
+  .brand .sub{display:none}
+  .brand .logo{font-size:17px}
+  .hero{padding:40px 16px 26px}
+  .hero h1{letter-spacing:1px}
+  .hero p{font-size:13.5px}
+  .hero-stats{gap:20px}
+  .hero-stats .hs b{font-size:22px}
+  .card{padding:16px}
+  .kv{grid-template-columns:78px 1fr;font-size:12.5px}
+  .day-tabs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}
+  .day-tabs button{padding:8px 4px}
+  .window-chips{flex-direction:column}
+  .wchip{width:100%}
+  .month-tabs button{width:38px;height:33px;font-size:12px}
+  .compare-bar .btn{flex:1}
+  .spot-item .meta{font-size:11.5px}
+  .cal-day{flex:0 0 66px}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">海钓时刻助手</span>
+    <span class="sub">广西沿海 · 智能钓鱼推荐</span>
+  </div>
+  <nav class="nav">
+    <a href="#s0">问明天</a><a href="#s5">曲线</a><a href="#s2">钓点</a>
+    <a href="#s3">潮汐</a>
+    <a href="#s8">鱼种</a><a href="#s9">装备</a><a href="#s11">记录</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <h1>明天几点去钓鱼？<br><em>现在就算给你看</em></h1>
+  <p>今晚花 10 秒：选城市 → 选海边钓点。<br>潮水、风向、水温自动算出明天最该下竿的 3 小时。</p>
+  <div class="hero-stats">
+    <div class="hs"><b>12</b><span>核心钓点</span></div>
+    <div class="hs"><b>3</b><span>沿海城市</span></div>
+    <div class="hs"><b>17</b><span>目标鱼种</span></div>
+    <div class="hs"><b>全日潮</b><span>北部湾潮型</span></div>
+  </div>
+</div>
+
+<div class="wrap">
+
+<!-- ============ 模块零：明日决策问答 ============ -->
+<section id="s0">
+  <div class="wizard">
+    <div class="wz-step">
+      <div class="wz-label"><b>① 选城市</b>　北海 / 防城港 / 钦州（仅限海边钓点）</div>
+      <div class="seg-btns big" id="wzCity"></div>
+    </div>
+    <div class="wz-step">
+      <div class="wz-label"><b>② 选钓点</b>　点击切换，答案实时重算</div>
+      <div class="seg-btns big" id="wzSpot"></div>
+    </div>
+    <div class="wz-result" id="wzResult"></div>
+  </div>
+  <div class="nx" style="margin-top:14px">下面是进阶工具：全天曲线、交互地图、潮汐预报、鱼种图谱、装备清单、作钓记录……想用的时候再展开。</div>
+</section>
+
+<!-- ============ 模块一 ============ -->
+<section id="s5">
+  <div class="sec-head">
+    <div class="sec-no">MODULE 01</div>
+    <h2>全天评分曲线 · 05:00 – 22:00</h2>
+    <p class="desc">每小时一个钓鱼指数（潮汐 45% + 水温 35% + 风向 20%，叠加晨昏窗口加成与季节修正；气压不参评——大样本统计未见显著效应）。系统自动标出主推荐时段和两个备选时段；切换日期对比三天曲线。当前查看钓点：<b id="curveSpotName" style="color:var(--teal)">北海 · 外沙岛</b>（在地图里点选钓点可切换）。</p>
+  </div>
+  <div class="chart-box">
+    <div class="day-tabs" id="dayTabs">
+      <button data-day="1" class="on">明天</button>
+      <button data-day="2">后天</button>
+      <button data-day="3">大后天</button>
+    </div>
+    <canvas id="curveCanvas" width="1060" height="420" style="width:100%"></canvas>
+    <div class="window-chips" id="windowChips"></div>
+  </div>
+</section>
+
+<!-- ============ 模块二 ============ -->
+<section id="s2">
+  <div class="sec-head">
+    <div class="sec-no">MODULE 02</div>
+    <h2>广西沿海钓点交互地图</h2>
+    <p class="desc">点击地图上的钓点或右侧列表查看详情；勾选任意两个钓点的"对比"框，横向对比明天的潮汐与天气适配度。</p>
+  </div>
+  <div class="map-layout">
+    <div class="map-box">
+      <svg id="mapSvg" viewBox="0 0 640 420" style="width:100%;height:auto" role="img" aria-label="广西沿海钓点示意图"></svg>
+      <div class="map-legend">
+        <span><i style="background:var(--green)"></i>新手友好</span>
+        <span><i style="background:var(--yellow)"></i>需要经验</span>
+        <span><i style="background:var(--red)"></i>高风险</span>
+        <span style="color:var(--dim)">※ 示意图，非精确地理位置</span>
+      </div>
+    </div>
+    <div>
+      <div id="spotList"></div>
+      <div class="compare-bar">
+        <button class="btn" id="compareBtn" disabled>对比已选钓点（0/2）</button>
+        <button class="btn ghost" id="clearCmp">清空</button>
+      </div>
+      <div class="spot-detail card" id="spotDetail" style="display:none"></div>
+    </div>
+  </div>
+  <div id="comparePanel"></div>
+</section>
+
+<!-- ============ 模块三 ============ -->
+<section id="s3">
+  <div class="sec-head">
+    <div class="sec-no">MODULE 03</div>
+    <h2>潮汐预报 · 大潮日历与逐日实测表</h2>
+    <p class="desc">潮高取北海港实测预报（国家海洋信息中心），超出覆盖期由全日潮模型估算。<b>中潮活汛最适合出钓</b>：初三、十八前后大潮流急鱼口猛，初八、廿三前后小潮死汛鱼口轻。</p>
+  </div>
+  <div class="now-tide" id="nowTide"></div>
+  <div class="card" style="margin-top:16px">
+        <h3 style="font-size:16px;margin-bottom:8px">大潮 / 小潮日历（未来 14 天）</h3>
+        <div class="nx">实际最大潮滞后朔望 2—3 天（"初三水、十八潮"）：初三、十八前后为大潮（流急、鱼口猛但窗口短），<b>中潮活汛最适合出钓</b>；初八、廿三前后为小潮死汛（水流弱、鱼口轻）。另注意高潮时刻随季节漂移：夏季白天涨潮、下午—傍晚最佳；冬季夜间高潮多，适合夜钓鱿鱼乌头。覆盖期内为北海港实测预报，超出覆盖期由全日潮模型推算，出行前以国家海洋信息中心最新发布为准。</div>
+        <div class="cal-strip" id="calStrip"></div>
+      </div>
+  <div class="card" style="margin-top:16px">
+    <h3 style="font-size:16px;margin-bottom:8px">逐日潮汐表 · 未来 7 天</h3>
+    <div class="table-scroll"><table class="tide-table" id="tideTable"></table></div>
+    <div class="nx" style="margin-bottom:0">「实测表」= 国家海洋信息中心北海港潮汐预报（潮高基准面起算）；「模型」= 超出实测覆盖期后由全日潮模型估算。标注「双潮」的日期一天有两次涨落，列出两组高低潮。出行前以官方最新发布为准。</div>
+  </div>
+</section>
+
+<!-- ============ 模块四 ============ -->
+<section id="s8">
+  <div class="sec-head">
+    <div class="sec-no">MODULE 04</div>
+    <h2>鱼种季节动态图谱</h2>
+    <p class="desc">按月查看广西沿海目标鱼种分布。<span style="color:var(--teal)">当季推荐</span> · <span style="color:var(--sand)">即将进入旺季</span> · <span style="color:var(--dim)">过季</span>。月份按钮下划线 = 当月综合评级（<span style="color:var(--sand)">金 ★5</span> / <span style="color:var(--teal)">青 ★4</span> / 灰 ★3 / 暗 ★2）。点击鱼种展开钓法、饵料与常见体型。</p>
+  </div>
+  <div class="hm-legend">鱼种 × 月份热力图（<span style="color:var(--teal)">■</span> 当季可钓 · <span style="color:var(--sand)">■</span> 当前月）· 点任意格子切换月份</div>
+  <div id="fishHeat"></div>
+  <div class="month-tabs" id="monthTabs"></div>
+  <div class="fish-grid" id="fishGrid"></div>
+</section>
+
+<!-- ============ 模块五 ============ -->
+<section id="s9">
+  <div class="sec-head">
+    <div class="sec-no">MODULE 05</div>
+    <h2>装备建议引擎 · 拆解</h2>
+    <p class="desc">根据钓法 + 天气 + 经验等级输出清单，三个抽屉可展开，支持一键复制。</p>
+  </div>
+  <div class="gear-layout">
+    <div class="card">
+      <div class="slider-row">
+        <label>钓法</label>
+        <div class="seg-btns" id="gearMethod"></div>
+      </div>
+      <div class="slider-row">
+        <label>天气</label>
+        <div class="seg-btns" id="gearWeather"></div>
+      </div>
+      <div class="slider-row">
+        <label>经验等级</label>
+        <div class="seg-btns" id="gearExp"></div>
+      </div>
+      <button class="btn" id="copyGear" style="width:100%;margin-top:6px">📋 一键复制装备清单</button>
+      <span class="copy-ok" id="copyOk"></span>
+    </div>
+    <div>
+      <div class="drawer open" id="drMust">
+        <div class="drawer-head">新手必带（安全件，少一样都别出海）<span class="arrow">▼</span></div>
+        <div class="drawer-body" id="gearMust"></div>
+      </div>
+      <div class="drawer open" id="drMethod">
+        <div class="drawer-head">钓法装备<span class="arrow">▼</span></div>
+        <div class="drawer-body" id="gearMethodList"></div>
+      </div>
+      <div class="drawer open" id="drWeather">
+        <div class="drawer-head">天气适配<span class="arrow">▼</span></div>
+        <div class="drawer-body" id="gearWeatherList"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============ 模块六 ============ -->
+<section id="s11">
+  <div class="sec-head">
+    <div class="sec-no">MODULE 06</div>
+    <h2>作钓记录</h2>
+    <p class="desc">钓完花 5 秒记一笔，只存在本机浏览器里。攒够 20 次，就能用你自己的数据校准推荐指数——这比任何通用模型都准。</p>
+  </div>
+  <div class="card">
+    <div class="log-form">
+      <input type="date" id="logDate">
+      <select id="logSpot"></select>
+      <select id="logWindow">
+        <option>清晨 05–08</option><option>上午 08–12</option><option>下午 12–17</option><option>傍晚 17–20</option><option>夜钓 20–24</option>
+      </select>
+      <div class="seg-btns" id="logResult">
+        <button data-r="爆护">爆护</button><button data-r="有口" class="on">有口</button><button data-r="空军">空军</button>
+      </div>
+      <button class="btn" id="logAdd">记一笔</button>
+      <button class="btn ghost" id="logExport">导出 CSV</button>
+    </div>
+    <div class="nx" id="logStat" style="margin:10px 0 6px"></div>
+    <div id="logList"></div>
+  </div>
+</section>
+
+</div><!-- /wrap -->
+
+<footer>
+  <div class="wrap">
+    <p><b style="color:var(--mut)">海钓时刻助手</b> · 广西沿海智能钓鱼推荐系统</p>
+    <p style="margin-top:8px">数据底座：潮汐类型、水温统计、渔汛规律与钓点信息取自《广西沿海海钓深度调研报告》（2026-08）；评分模型按《潮水、水温、天气对鱼类开口概率的影响》研究报告（2026-08）校准——潮汐 45% + 水温 35% + 风向 20%，叠加晨昏窗口与季节修正；气压不参评（大样本统计未见显著效应）。逐日潮汐为北海港实测预报（覆盖期内）/ 全日潮模型推算，天气为 Open-Meteo 实时预报。南海伏季休渔（5.1—8.16）钓具除外，休闲海钓全年合法；北海—涠洲浅海为二长棘鲷幼鱼保护区，请放流小规格渔获。出海前请以国家海洋信息中心潮汐表、气象预警为准。安全第一，永不独自夜钓礁石区。</p>
+  </div>
+</footer>
+
+<script>
+/* =========================================================
+   海钓时刻助手 · 核心逻辑
+   评分模型：按《潮水、水温、天气对鱼类开口概率的影响》研究报告（2026-08）校准
+   ========================================================= */
+
+/* ---------- 工具 ---------- */
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,"0");
+const hhmm = h => { h=((h%24)+24)%24; const total=Math.round(h*60)%1440; return pad(Math.floor(total/60))+":"+pad(total%60); };
+function seededRand(seed){ let s=seed%2147483647; if(s<=0)s+=2147483646; return ()=>((s=s*16807%2147483647)-1)/2147483646; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+const TODAY = new Date();
+function dayLabel(n){ return n===1?"明天":n===2?"后天":"大后天"; }
+function dateStr(d){ return (d.getMonth()+1)+"月"+d.getDate()+"日"; }
+
+/* ---------- 农历 & 潮汐模型（北部湾全日潮） ---------- */
+const SYNODIC = 29.530588853;
+function lunarDay(date){
+  // 校准：2026-08-12 = 农历六月三十，2026-08-13 = 七月初一（对齐国家海洋信息中心潮汐表）
+  // 取本地日中午转 UTC，避免时区跨过日期边界导致 ±1 天
+  // LUNAR_SHIFT：真实农历月有 29/30 天之分，线性朔望模型在月末会漂移，
+  // 加 0.53 天让 30 天大月的月末也对齐（2026-08 经 eisk.cn 逐日核对）
+  const epoch = Date.UTC(2000,0,6,18,0);
+  const dUTC = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0);
+  const d = (dUTC-epoch)/86400000 + 0.53;
+  let m = d%SYNODIC; if(m<0)m+=SYNODIC;
+  return Math.floor(m)+1;
+}
+function lunarName(ld){
+  if(ld===1) return "初一";
+  if(ld===15) return "十五";
+  if(ld<10) return "初"+["","一","二","三","四","五","六","七","八","九"][ld];
+  if(ld===10) return "初十";
+  if(ld<20) return "十"+["","一","二","三","四","五","六","七","八","九"][ld-10];
+  if(ld===20) return "二十";
+  if(ld===30) return "三十";
+  return "廿"+["","一","二","三","四","五","六","七","八","九","十"][ld-20];
+}
+/* 大潮滞后朔望 2—3 天："初三水、十八潮"（调研报告 §2.2），峰值对齐农历初三/十八 */
+function springness(ld){ return Math.abs(Math.cos(Math.PI*(ld-3)/(SYNODIC/2))); }
+function tideType(ld){ const s=springness(ld); return s>0.85?"大潮":s>0.5?"中潮":"小潮"; }
+
+/* 潮高模型（潮高基准面起算，模型估算）：平均海面 2.5 m，
+   振幅随大潮活力 0.5–2.2 m —— 大潮高潮约 4.7 m / 低潮约 0.3 m，小潮约 3.0 / 2.0 m */
+const MEAN_SEA = 2.5;
+function tideAmp(sp){ return 0.5 + 1.7*sp; }
+
+/* 高潮时刻随季节漂移（调研报告 §2.4）：8 月大潮日满潮约 16 时（下午—傍晚），
+   每提前一个月约早 2 小时，2—3 月转为夜间高潮；同日每天推迟约 50 分钟 */
+function seasonBase(month){ return (((16 + (month-8)*2.0) % 24) + 24) % 24; }
+
+/* 北海港实测潮汐预报（国家海洋信息中心数据，2026-08-11 经 eisk.cn 抓取复核，覆盖 2026-08-11 ~ 2026-08-25）
+   hh/lh = 满潮/干潮实测潮高（米，潮高基准面）；mixed=true 为不规则潮日（一天两次涨落，曲线以主潮为准）；
+   sst 为该站预报水温。潮高缺失时回退模型估算 */
+const TIDE_REAL = {
+  "2026-08-11": {low:"02:00", high:"15:51", lh:0.4, hh:5.2, type:"中潮", xun:"活汛", sst:32.3},
+  "2026-08-12": {low:"02:54", high:"16:54", lh:0.4, hh:5.2, type:"中潮", xun:"活汛", sst:32.3},
+  "2026-08-13": {low:"03:36", high:"17:58", lh:0.5, hh:5.2, type:"大潮", xun:"活汛", sst:32.3},
+  "2026-08-14": {low:"04:10", high:"19:00", lh:0.8, hh:5.0, type:"大潮", xun:"活汛"},
+  "2026-08-15": {low:"04:26", high:"19:59", lh:1.1, hh:4.7, type:"巨潮", xun:"活汛"},
+  "2026-08-16": {low2:"04:24", high2:"09:02", low:"13:33", high:"20:56", lh2:1.6, hh2:2.1, lh:1.7, hh:4.2, type:"中潮", xun:"活汛", mixed:true},
+  "2026-08-17": {low2:"04:20", high2:"09:10", low:"15:14", high:"21:53", lh2:1.9, hh2:2.7, lh:1.7, hh:3.6, type:"中潮", xun:"活汛", mixed:true},
+  "2026-08-18": {low2:"04:14", high2:"09:43", low:"16:49", high:"22:55", lh2:2.2, hh2:3.3, lh:1.7, hh:2.9, type:"中潮", xun:"活汛", mixed:true},
+  "2026-08-19": {low2:"03:55", high2:"10:25", low:"18:34", high:"24:14", lh2:2.3, hh2:3.8, lh:1.6, hh:2.3, type:"中潮", xun:"活汛", mixed:true},
+  "2026-08-20": {low2:"03:11", high2:"00:14", low:"20:41", high:"11:12", lh2:2.2, hh2:2.3, lh:1.5, hh:4.1, type:"小潮", xun:"活汛", mixed:true},
+  "2026-08-21": {low:"22:43", high:"11:59", lh:1.3, hh:4.4, type:"微潮", xun:"死汛"},
+  "2026-08-22": {low:"23:59", high:"12:49", lh:1.1, hh:4.5, type:"小潮", xun:"死汛"},
+  "2026-08-23": {low:"24:52", high:"13:40", lh:0.9, hh:4.6, type:"小潮", xun:"死汛"},
+  "2026-08-24": {low:"00:52", high:"14:34", lh:0.9, hh:4.6, type:"中潮", xun:"死汛"},
+  "2026-08-25": {low:"01:36", high:"15:29", lh:0.9, hh:4.6, type:"中潮", xun:"死汛"},
+};
+const parseHM = s => { const [h,m]=s.split(":").map(Number); return h+m/60; };
+const norm24 = h => ((h%24)+24)%24;
+
+function tideInfo(date, offset){
+  const ld = lunarDay(date);
+  const sp = springness(ld);
+  const off = offset||0;
+  const key = dateKey(date);
+  const real = TIDE_REAL[key];
+  if(real){
+    const msl = (real.hh!=null&&real.lh!=null) ? (real.hh+real.lh)/2 : MEAN_SEA;
+    const amp = (real.hh!=null&&real.lh!=null) ? (real.hh-real.lh)/2 : tideAmp(sp);
+    return {
+      ld, sp, amp, msl,
+      highClock: norm24(parseHM(real.high)+off),
+      lowClock:  norm24(parseHM(real.low)+off),
+      type: real.type, xun: real.xun, real: true,
+      mixed: !!real.mixed,
+      high2: real.high2!=null ? norm24(parseHM(real.high2)+off) : null,
+      low2:  real.low2 !=null ? norm24(parseHM(real.low2 )+off) : null,
+      highH: real.hh ?? msl+amp, lowH: real.lh ?? msl-amp,
+      high2H: real.hh2 ?? null, low2H: real.lh2 ?? null,
+    };
+  }
+  const base = seasonBase(date.getMonth()+1);
+  const highClock = ((base + off + (ld-1)*(24.8/SYNODIC)) % 24.8 + 24.8) % 24.8 % 24;
+  const lowClock = (highClock + 12.4) % 24.8 % 24;
+  const type = tideType(ld);
+  const amp = tideAmp(sp);
+  return { ld, sp, amp, msl: MEAN_SEA, highClock, lowClock, type, xun: type==="小潮"?"死汛":"活汛", real:false,
+    highH: MEAN_SEA+amp, lowH: MEAN_SEA-amp, high2H:null, low2H:null, high2:null, low2:null };
+}
+/* d = 距高潮的小时数（0..24.8），d=0 高潮，d=12.4 低潮 */
+function tideD(t, highClock){ return (((t-highClock)%24.8)+24.8)%24.8; }
+function tideLevel(t, highClock){ return Math.cos(2*Math.PI*tideD(t,highClock)/24.8); }
+/* 相位划分与评分依据 531 尾标志放流实证（ulua 项目：81% 咬钩集中在涨潮期）：
+   涨潮双峰——低潮后启动段（实证 37%）与涨潮末→满潮（实证 44%，含满潮前后），
+   退潮中段最弱（实证仅 4%），低潮前后略回升（10%） */
+function tidePhase(t, highClock){
+  const d = tideD(t, highClock);
+  if(d<1.2||d>23.6) return {key:"slackH", name:"满潮前后", gold:true};
+  if(d<=3.0)  return {key:"ebbEarly", name:"退潮初期", gold:false};
+  if(d<=11.2) return {key:"ebb", name:"退潮中段", gold:false, slack:true};
+  if(d<=13.6) return {key:"slackL", name:"低潮前后", gold:false};
+  if(d<=15.6) return {key:"floodEarly", name:"涨潮初期", gold:true};
+  if(d<=21.2) return {key:"floodMid", name:"涨潮中段", gold:false};
+  return {key:"floodLate", name:"涨潮末段", gold:true};
+}
+function tideScore(t, highClock, sp){
+  const k = tidePhase(t,highClock).key;
+  const base = {slackH:85, slackL:70, ebbEarly:75, ebb:45, floodEarly:92, floodMid:62, floodLate:92}[k];
+  return Math.round(base*(0.78+0.22*sp)); // 大潮潮差大流急（月相的有效成分是水流而非月光）
+}
+
+/* ---------- 钓点个性：地形相位偏好 + 夜钓/晨昏加成（调研报告第五章） ---------- */
+const CITY_TIDE_OFFSET = {"北海":0, "钦州":0.25, "防城港":0.5}; // 全日潮潮波由湾口向北传播；按实测满潮校准：防城港约比北海晚 30 分钟，钦州约 15 分钟
+const SPOT_BONUS = {
+  qiaogang:{night:9},  // 侨港防波堤：夜间灯光诱集
+  qisha:{night:7},     // 企沙渔港：夜钓鱿鱼出名
+  jintan:{dawnDusk:9}, // 万尾金滩红树林水道：日出后 1 小时及日落前
+  longmen:{dawnDusk:5},// 龙门港：早晚鲈鱼口好
+};
+function spotHourBonus(spot, h, phaseKey){
+  let b = 0;
+  const t = spot.terrain;
+  if(t==="礁石"||t==="岛礁"){
+    if(phaseKey==="floodLate") b+=8;    // 涨潮末至满潮贴礁鱼最活跃
+    else if(phaseKey==="slackH") b+=8;  // 满潮前后（实证高峰之一）
+    else if(phaseKey==="ebb") b-=8;     // 退潮鱼随水撤出礁区
+    else if(phaseKey==="slackL") b-=4;
+  }else if(t==="沙滩"||t==="沙滩+礁石"){
+    if(phaseKey==="floodEarly"||phaseKey==="floodLate") b+=7; // 涨水把饵料推上岸、开放浅滩摄食区
+    else if(phaseKey==="ebb") b-=6;
+  }else if(t==="内湾"){
+    if(phaseKey==="slackH"||phaseKey==="slackL") b+=3; // 内湾流缓，平潮也有口
+  }
+  const nb = SPOT_BONUS[spot.id];
+  if(nb){
+    if(nb.night && h>=17&&h<=21) b+=nb.night;          // 夜钓场傍晚起口
+    if(nb.dawnDusk && ((h>=6&&h<=8)||(h>=17&&h<=18))) b+=nb.dawnDusk; // 晨昏水道
+  }
+  return b;
+}
+
+/* ---------- 天气数据：实时优先（Open-Meteo 免费预报），失败回退模拟 ---------- */
+const DIRS = ["北","东北","东","东南","南","西南","西","西北"];
+const COORDS = { // 钓点经纬度（约值，用于拉取逐点气象/浪高预报）
+  jintan:[21.55,108.13], bailang:[21.54,108.35], guaishi:[21.60,108.24], qisha:[21.58,108.48],
+  sanniang:[21.63,108.77], maowei:[21.87,108.55], longmen:[21.76,108.60],
+  yintan:[21.40,109.14], waisha:[21.49,109.08], qiaogang:[21.43,109.10],
+  guantou:[21.4287,109.0952], weizhou:[21.03,109.10],
+};
+const dateKey = d => d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const BEAUFORT = v => v<6?1:v<12?2:v<20?3:v<29?4:v<39?5:v<50?6:v<62?7:v<75?8:9; // km/h → 风级
+const deg2dir = d => DIRS[Math.round(d/45)%8];
+const REAL = { spot:null, time:null, byDate:{}, wave:{}, uv:{}, rain:{}, loading:false };
+function dayWeatherSim(date){
+  const key = date.getFullYear()*372 + (date.getMonth()+1)*31 + date.getDate();
+  const r = seededRand(key*97+13);
+  return {
+    windDir: DIRS[Math.floor(r()*8)],
+    windForce: 2+Math.floor(r()*4),
+    pres: 1002+Math.round(r()*10),
+    wave: Math.round((0.4+r()*1.0)*10)/10,
+    src: "模拟"
+  };
+}
+function dayWeather(date){
+  const key = dateKey(date);
+  if(REAL.byDate[key]) return { ...REAL.byDate[key], wave: REAL.wave[key] ?? dayWeatherSim(date).wave, uv: REAL.uv[key] ?? null, rain: REAL.rain[key] ?? null };
+  return dayWeatherSim(date);
+}
+/* 拉取选中钓点未来 3 天的逐小时预报（白天 05—22 时取均值）+ 浪高 + 紫外线/降水概率 */
+async function fetchRealWeather(spotId){
+  const c = COORDS[spotId];
+  if(!c) return;
+  REAL.loading = true;
+  if(typeof wz!=="undefined" && wz.spot===spotId && typeof renderWzResult==="function") renderWzResult();
+  if(typeof navigator!=="undefined" && navigator.onLine===false){ loadWxCache(spotId); return; }
+  try{
+    const [lat,lon] = c;
+    const wx = await (await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`+
+      `&hourly=wind_speed_10m,wind_direction_10m,surface_pressure,uv_index,precipitation_probability&timezone=Asia%2FShanghai&forecast_days=4`
+    )).json();
+    let marine = null;
+    try{
+      marine = await (await fetch(
+        `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}`+
+        `&hourly=wave_height&timezone=Asia%2FShanghai&forecast_days=4`
+      )).json();
+    }catch(e){}
+    if(!wx || !wx.hourly){ REAL.loading=false; loadWxCache(spotId); return; }
+    const byDate = {}, waveMap = {}, uvMap = {}, rainMap = {};
+    for(let n=1;n<=3;n++){
+      const key = dateKey(addDays(TODAY,n));
+      let ws=0, wd=0, pr=0, wv=0, cnt=0, uvMax=0, ppMax=0;
+      wx.hourly.time.forEach((t,i)=>{
+        if(!t.startsWith(key)) return;
+        const hh = +t.slice(11,13);
+        if(hh<5||hh>22) return;
+        ws += wx.hourly.wind_speed_10m[i];
+        wd += wx.hourly.wind_direction_10m[i];
+        pr += wx.hourly.surface_pressure[i];
+        if(marine && marine.hourly && marine.hourly.wave_height) wv += marine.hourly.wave_height[i];
+        if(wx.hourly.uv_index && wx.hourly.uv_index[i]!=null) uvMax = Math.max(uvMax, wx.hourly.uv_index[i]);
+        if(wx.hourly.precipitation_probability && wx.hourly.precipitation_probability[i]!=null) ppMax = Math.max(ppMax, wx.hourly.precipitation_probability[i]);
+        cnt++;
+      });
+      if(cnt>0){
+        byDate[key] = { windDir:deg2dir(wd/cnt), windForce:BEAUFORT(ws/cnt), pres:Math.round(pr/cnt), src:"实时" };
+        waveMap[key] = (marine && marine.hourly) ? Math.round(wv/cnt*10)/10 : null;
+        uvMap[key] = Math.round(uvMax*10)/10;
+        rainMap[key] = Math.round(ppMax);
+      }
+    }
+    if(!Object.keys(byDate).length){ REAL.loading=false; loadWxCache(spotId); return; }
+    REAL.spot = spotId; REAL.time = new Date();
+    REAL.byDate = byDate; REAL.wave = waveMap; REAL.uv = uvMap; REAL.rain = rainMap;
+    try{ localStorage.setItem("hf_wx_"+spotId, JSON.stringify({t:REAL.time.getTime(), byDate, wave:waveMap, uv:uvMap, rain:rainMap})); }catch(e){}
+    REAL.loading = false;
+    if(typeof refreshRealtimeViews==="function") refreshRealtimeViews(spotId);
+  }catch(e){ REAL.loading=false; loadWxCache(spotId); /* 网络不可用 → 本地缓存兜底，无缓存则保持模拟数据 */ }
+}
+/* 实时源不可用时的本地缓存兜底（按钓点存，标注拉取时间） */
+function loadWxCache(spotId){
+  try{
+    const raw = localStorage.getItem("hf_wx_"+spotId); if(!raw) return false;
+    const c = JSON.parse(raw);
+    if(!c.byDate || !Object.keys(c.byDate).length) return false;
+    const byDate = {};
+    Object.entries(c.byDate).forEach(([k,v])=>{ byDate[k] = { ...v, src:"缓存" }; });
+    REAL.spot = spotId; REAL.time = new Date(c.t||Date.now());
+    REAL.byDate = byDate; REAL.wave = c.wave||{}; REAL.uv = c.uv||{}; REAL.rain = c.rain||{};
+    if(typeof refreshRealtimeViews==="function") refreshRealtimeViews(spotId);
+    return true;
+  }catch(e){ return false; }
+}
+
+/* ---------- 单项评分 ---------- */
+const DIR_FACTOR = {"北":1,"东北":1,"东":0.85,"西北":0.8,"东南":0.65,"西":0.62,"南":0.55,"西南":0.55};
+function forceFactor(f){ return f<=1?0.9:f<=3?1:f===4?0.85:f===5?0.45:f===6?0.25:0.05; }
+function windScore(dir,f){ return Math.round(DIR_FACTOR[dir]*forceFactor(f)*100); }
+/* 水温（而非气温）——北海/涠洲站多年月均表层水温（调研报告 §3.1） */
+const SST = {1:16,2:17,3:20,4:23,5:26,6:29,7:30,8:30,9:28,10:26,11:23,12:19};
+function waterTempOf(date){
+  const real = TIDE_REAL[dateKey(date)];
+  if(real && real.sst) return real.sst; // 实测预报水温（覆盖期内）
+  return SST[date.getMonth()+1];
+}
+/* 水温分（强证据：钟形响应 + Q10≈2.4 —— 低温段陡峭、高温段钝化）
+   综合受控实验窗口：黑鲷最适 26–29℃、石斑 25–30℃、花鲈 21℃（≥28℃ 热应激）、金枪鱼类 20–24℃ */
+function waterScore(t){
+  if(t>=22&&t<=29) return 100;
+  if(t>29)  return t<=31? Math.round(100-(t-29)*15) : Math.max(40, Math.round(70-(t-31)*12));
+  if(t>=18) return Math.round(70+(t-18)*7.5);   // 低温段：Q10 效应，差几度差很多
+  if(t>=15) return Math.round(40+(t-15)*10);
+  return 25; // 贴近黑鲷 13℃ 摄食衰减线，近岸基本无口
+}
+/* 逐月季节修正（《北部湾海钓逐月开口日历》2026-08：水温窗口 × 物候 × 可钓性三因子合成）
+   对应综合评级：10/11 月 ★★★★★；3/4/5/9 月 ★★★★；1/2/6/12 月 ★★★；7/8 月 ★★（谷底） */
+const SEASON_MONTHLY = {
+  1:{bonus:-3, name:"冬季·专种季", note:"黑鲷华南产卵集群高峰（11—3 月）+ 马鲛冬春汛，冬季并非空白；约束是冷空气大风，守两次冷空气之间的稳定窗口"},
+  2:{bonus:-3, name:"冬季·专种季", note:"黑鲷产卵季 + 马鲛春汛启动；冷空气大风 6—7 级是主要限制"},
+  3:{bonus:6,  name:"春季窗口", note:"水温穿越 19℃，花鲈回归、黑鲷产卵季尾声；季风转换期风况全年最温和，新手容错最高"},
+  4:{bonus:8,  name:"春季窗口", note:"马鲛春汛峰值 + 枪乌贼春汛，金鲳回归；水温约 22℃ 进入多鱼种共同窗口"},
+  5:{bonus:8,  name:"春季窗口", note:"石斑/花鲈/金鲳全面进入窗口；5.1 休渔开始（钓具除外，船钓须报备开 AIS）"},
+  6:{bonus:0,  name:"初夏·休渔期", note:"近岸约 29℃ 逼近花鲈热应激线，钓早晚钓深水；台风季开启"},
+  7:{bonus:-3, name:"盛夏谷底", note:"全年最差月之一：近岸约 30℃ 热应激 + 台风高峰（7—9 月占全年 72%）；例外是夜钓枪乌贼，7—9 月生物量全年最大"},
+  8:{bonus:-3, name:"盛夏谷底", note:"高温台风叠加休渔；主钓枪乌贼（夜钓）与耐高温金鲳，8.16 开渔是反转节点"},
+  9:{bonus:8,  name:"秋季窗口", note:"开渔后资源快速恢复 + 水温回落渐入窗口，枪乌贼旺季延续；台风退场"},
+  10:{bonus:12, name:"黄金季", note:"花鲈盛渔 + 石斑产后索饵 + 中上层旺汛；水温约 26.6℃ 正落多鱼种最适窗口"},
+  11:{bonus:12, name:"黄金季", note:"资源密度约为春季 3.7 倍（休渔恢复），黑鲷产卵集群启动；全年证据链最完整的月份"},
+  12:{bonus:-3, name:"冬季·专种季", note:"黑鲷主角 + 马鲛/中上层冬春汛；冷空气大风渐频，择稳出行"},
+};
+function seasonFishing(date){
+  const m = date.getMonth()+1;
+  const s = { ...SEASON_MONTHLY[m] };
+  // 休渔期内的开渔倒计时/提示（2026 年休渔：5.1 12时 — 8.16 12时）
+  if(m===8 && date.getDate()<16) s.note += `；距 8.16 开渔还有 ${16-date.getDate()} 天`;
+  else if(m===8) s.note += "；已开渔，资源密度进入恢复通道";
+  return s;
+}
+/* 综合指数（2026-08 研究报告校准）：
+   潮汐 45% + 水温 35% + 风向 20%，叠加季节修正与晨昏窗口；
+   气压不参评——12 年渔获普查与 4000+ 次出钓统计均无显著效应（±20 hPa 仅折合约 20 cm 水柱） */
+function fishIndex(t, w, ti, sst, bonus){
+  const tide = tideScore(t, ti.highClock, ti.sp);
+  const wind = windScore(w.windDir, w.windForce);
+  const temp = waterScore(sst);
+  let total = Math.round(0.45*tide + 0.20*wind + 0.35*temp + bonus);
+  /* 晨昏光照窗口（较强证据：黎明/黄昏摄食峰值 P<0.05），与潮汐窗口乘性叠加 */
+  if((t>=5&&t<=8)||(t>=17&&t<=19)) total = Math.round(total*1.08);
+  /* 闷热低氧（溶氧链条，中等证据）：水温 ≥29℃ 且 ≤2 级风，海气交换差、溶氧上限低 */
+  if(sst>=29 && w.windForce<=2) total -= 8;
+  /* 大浪水浑（浊度链条，中等证据）：视觉型鱼反应距离骤降 */
+  if(w.wave!=null && w.wave>=1.5) total -= 10;
+  return { total: Math.max(3, Math.min(99, total)), tide, wind, temp };
+}
+/* 最佳时段：3 小时滑动窗口均分，取互不重叠的 Top3（按钓点个性加权） */
+function bestWindows(date, spot){
+  const off = spot ? (CITY_TIDE_OFFSET[spot.city]||0) : 0;
+  const ti = tideInfo(date, off), w = dayWeather(date);
+  const sst = waterTempOf(date), season = seasonFishing(date);
+  const hours=[];
+  for(let h=5;h<=22;h++){
+    let s = fishIndex(h,w,ti,sst,season.bonus).total;
+    if(spot) s = Math.max(3, Math.min(99, s + spotHourBonus(spot, h, tidePhase(h, ti.highClock).key)));
+    hours.push({h, s});
+  }
+  const wins=[];
+  for(let i=0;i<=hours.length-4;i++){
+    const avg=(hours[i].s+hours[i+1].s+hours[i+2].s)/3;
+    wins.push({start:hours[i].h, end:hours[i].h+3, avg});
+  }
+  wins.sort((a,b)=>b.avg-a.avg);
+  const picked=[];
+  for(const win of wins){
+    if(picked.every(p=>win.start>=p.end||win.end<=p.start)){
+      picked.push(win); if(picked.length===3) break;
+    }
+  }
+  picked.sort((a,b)=>b.avg-a.avg);
+  return {hours, picked, ti, w, sst, season};
+}
+
+/* ---------- 钓点数据（12 个核心钓点，按调研报告第五章校准） ---------- */
+const SPOTS = [
+ {id:"jintan",   city:"防城港", name:"万尾金滩（东兴）", type:"滩钓/路亚", terrain:"沙滩",   danger:2, newbie:4, x:62,  y:232,
+  fish:["海鲈","红眼鲻","黑鲷","鱿鱼"], parking:"景区停车场 10 元/次",
+  best:"日出后 1 小时及日落前，鱼随潮入红树林水道；鱿鱼 3—5 月夜钓",
+  desc:"京族三岛传统渔业区。滩缓水浅适合入门；红树林水道海鲈 1—5 斤，退潮可挖生蚝；严防离岸流。"},
+ {id:"bailang",  city:"防城港", name:"白浪滩",     type:"滩钓",    terrain:"沙滩",   danger:2, newbie:4, x:138, y:252,
+  fish:["沙尖","鲻鱼","金鲳"], parking:"大平坡停车场，旺季紧张",
+  best:"浪小的清晨，涨潮期",
+  desc:"滩面宽、浪名不虚传。浪大时直接放弃，浪小沙尖成群。"},
+ {id:"guaishi",  city:"防城港", name:"怪石滩—月亮湾", type:"矶钓",    terrain:"礁石",   danger:4, newbie:2, x:182, y:288,
+  fish:["黑鲷","石斑","沙尖","泥猛"], parking:"村道尽头少量车位",
+  best:"涨潮期；全年可钓，兼赶海",
+  desc:"江山半岛礁石带，结构藏鱼但滑、陡、涨水快，新人务必结伴并穿钉鞋。"},
+ {id:"qisha",    city:"防城港", name:"企沙渔港",   type:"码头钓",  terrain:"码头",   danger:1, newbie:5, x:238, y:262,
+  fish:["黄鳍鲷","海鲈","鱿鱼"], parking:"港区周边免费车位多",
+  best:"全年；夜钓鱿鱼（3—5 月最盛）",
+  desc:"广西第二大渔港，平坦遮蔽、补给方便，最适合带娃第一次海钓。"},
+ {id:"sanniang", city:"钦州",   name:"三娘湾",     type:"滩钓/矶钓", terrain:"沙滩+礁石", danger:2, newbie:4, x:330, y:244,
+  fish:["黄鳍鲷","黑鲷","沙尖"], parking:"景区停车场 15 元/次",
+  best:"涨潮期；白海豚活动区鱼群活性高（鱼随豚走）",
+  desc:"景区东侧礁石带是主标点，礁石湿滑需防滑鞋；沙滩段新手友好。"},
+ {id:"maowei",   city:"钦州",   name:"茅尾海—龙门江口", type:"筏钓/岸钓", terrain:"内湾",   danger:1, newbie:5, x:306, y:196,
+  fish:["海鲶","黄鳍鲷","海鲈","金鼓"], parking:"红树林栈道入口停车场",
+  best:"洄游季（5—9 月海鲶）；全年筏钓",
+  desc:"半封闭内湾风浪小，海鲶重要洄游产卵场；蚝排筏钓稳定出鱼，晕浪者的避风港。"},
+ {id:"longmen",  city:"钦州",   name:"龙门港",     type:"码头/船钓", terrain:"码头",   danger:2, newbie:3, x:378, y:212,
+  fish:["海鲈","金鲳","马鲛"], parking:"港区路边车位",
+  best:"早晚鲈鱼口好；春汛、秋汛船钓",
+  desc:"港深流急，可拼船出外围岛礁。"},
+ {id:"yintan",   city:"北海",   name:"银滩—冯家江口", type:"滩钓",    terrain:"沙滩",   danger:1, newbie:4, x:472, y:196,
+  fish:["沙尖","黄鳍鲷","七星鲈"], parking:"景区东停车场，步行 10 分钟",
+  best:"涨潮期；2—3 月七星鲈洄游入冯家江",
+  desc:"选南岸红树林线下竿；北岸（高德—外沙）水质差不宜下竿。夏秋清晨沙尖连竿，严防离岸流。"},
+ {id:"waisha",   city:"北海",   name:"外沙岛",     type:"岸钓",    terrain:"堤岸",   danger:1, newbie:5, x:522, y:168,
+  fish:["石斑","真鲷","黄鳍鲷"], parking:"岛口停车场 10 元/天",
+  best:"涨潮中段至退潮初段；夏秋最佳",
+  desc:"市区最近的海钓点，堤岸平整有护栏，石斑真鲷常客，新手第一站。"},
+ {id:"qiaogang", city:"北海",   name:"侨港电建渔港", type:"岸钓/夜钓", terrain:"堤岸",   danger:1, newbie:5, x:505, y:208,
+  fish:["乌头","火点","海鲈","鱿鱼"], parking:"渔港周边车位，夜市旁",
+  best:"夜间灯光诱集；鱿鱼 3—5 月",
+  desc:"防波堤夜钓胜地，灯光下乌头鱿鱼成群；收竿直达侨港夜市加工。"},
+ {id:"guantou",  city:"北海",   name:"冠头岭",     type:"矶钓",    terrain:"礁石",   danger:4, newbie:2, x:444, y:230,
+  fish:["黑鲷","黄鳍鲷","石斑","七星鲈","红友"], parking:"山脚停车位少，需早到",
+  best:"10 月—次年 4 月，涨潮中段至满潮；水深 5—15 米",
+  desc:"北海矶钓圣地（含西侧浪涌区），结构复杂鱼大鱼多，礁石+陡崖+快速涨水三重风险并存。"},
+ {id:"weizhou",  city:"北海",   name:"涠洲岛（南湾/五彩滩）", type:"矶钓/船钓", terrain:"岛礁", danger:3, newbie:2, x:492, y:336,
+  fish:["石斑","真鲷","红友","牛港鲹","鱿鱼"], parking:"需乘船上岛，岛上电动车",
+  best:"大潮前后 2 小时；鱿鱼 3—5 月夜钓；9—11 月渔获最佳",
+  desc:"火山岩礁+清澈外海水，东部海区鱼密度高于全市平均 37%；南湾浮桥水深 8—12 米适合新手，需安排两天一夜。"},
+];
+const dangerClass = d => d<=2?"on1":d===3?"on2":"on3";
+const dangerColor = d => d<=2?"#4FC98A":d===3?"#E9C44C":"#F26157";
+const dangerText = d => d<=2?"低":d===3?"中":"高";
+
+/* ---------- 鱼种季节数据（按调研报告第三、四章校准，含摄食适温） ---------- */
+const FISH = [
+ {name:"石斑",   months:[4,5,6,7,8,9,10], optT:"22–30℃", method:"沉底钓 / 路亚", bait:"活虾、小杂鱼、鱿鱼条", size:"0.5–3 kg，涠洲 3–10 斤", note:"低于 20℃ 活动减少、15℃ 基本停食。贴礁觅食，中鱼后第一时间拔离礁缝，否则必磨线。"},
+ {name:"真鲷",   months:[1,3,4,9,10,11,12], optT:"20–28℃", method:"沉底钓 / 浮游矶钓", bait:"虾仁、南极虾、沙蚕", size:"0.5–2 kg", note:"秋冬深水、春季靠岸。吃口轻，抓第二口。"},
+ {name:"黑鲷",   months:[1,2,3,4,10,11,12], optT:"17–25℃", method:"浮游矶钓 / 前打", bait:"沙蚕、虾肉、牡蛎", size:"0.3–1.5 kg", peak:"晨昏 5–8 / 16:30–19 时（暖月夜钓可行）", note:"华南产卵季 11—3 月，亲鱼集群近岸礁石区——冬春才是本地重头戏（与华东春秋直觉相反）；水温跌破约 13℃ 摄食明显下降。潮汐细节：大潮退潮前 2 小时食物随退流汇聚礁缝。警惕性高，子线宜细宜长。"},
+ {name:"黄鳍鲷(黄脚腊)", months:[4,5,8,9,10], optT:"17–28℃", method:"沉底 / 筏钓", bait:"虾肉、沙蚕", size:"0.2–1 kg", peak:"暖季晨昏+夜钓；冬季选下午暖水段", note:"夏末秋初个体最大、鱼口最猛（9—10 月峰值，4—5 月次峰，8 月偏旺）；10 月大北风降温天是老钓友的年度最佳。注意：11 月中旬起产前外移深水——同为冬产鲷类，黑鲷在近岸产卵（冬季旺季），黄脚腊却产前离场（冬季淡季），别套用。新手练习抓口的最佳对象。"},
+ {name:"海鲈(七星鲈)", months:[2,3,4,5,9,10,11], optT:"21–27℃", method:"路亚 / 活虾漂钓", bait:"米诺、VIB、活虾", size:"0.5–4 kg", peak:"晨昏炸水期", note:"窗口 21–27℃，≥28℃ 热应激闭口；10—11 月集群入海越冬前索饵高峰为盛渔期。早晚炸水期最猛；2—3 月洄游入冯家江，浑水线、闸口是标点多发区。"},
+ {name:"沙尖",   months:[4,5,6,7,8,9], optT:"暖水性", method:"滩钓串钩", bait:"沙蚕、红虫", size:"10–25 cm", note:"滩钓入门鱼，成群出没，连竿体验极佳。"},
+ {name:"乌头(鲻鱼)", months:[1,2,3,5,6,7,8,9,10,11], optT:"广温性", method:"浮钓 / 码头手竿", bait:"面饵、虾肉", size:"0.3–1.5 kg", note:"码头、河口成群，拉力十足；冬季深水也有口，侨港夜钓灯光下最密。"},
+ {name:"金鲳",   months:[5,6,7,8,9,10], optT:"22–28℃", method:"船钓 / 远投沉底 / 筏钓", bait:"虾、小鱼、铁板", size:"0.5–2 kg", peak:"上午 9–11 时（次峰 14–17 时）", note:"白天摄食型：受控实验摄食双峰 10:00 与 14–16 时（P<0.05），清晨 6 点前后全天最低——「上午十点的鱼，不是清晨六点的鱼」，别赶早口。高耗氧巡游鱼（窒息点 2.5 mg/L）：闷热无风天率先停口，选小风微浪清水天；大风浪后等 1–2 天水沉清。16℃ 以下停食、14℃ 存活下限，12—3 月近岸绝迹。双旺季：5—6 月繁殖集群 + 9—10 月育肥。标点：河口湾口、礁岛周边、网箱区外围缓流带（排区垂钓先征得排主同意）。"},
+ {name:"马鲛",   months:[3,4,9,10,11], optT:"20–29℃", method:"船钓拖钓 / 铁板", bait:"铁板、拟饵", size:"1–5 kg", peak:"日出前后 + 涨潮后 2–4h（约 7–10 时）；16–19 时次之", note:"双峰：秋汛 9—11 月为主汛（开渔后进岸索饵，秋季摄食积极性全年最高），春汛 3—4 月次峰；12—2 月湾口产卵场可船钓。第一原则是找饵鱼——海鸟盘旋、水面炸水即黄金信号，看到就把时间表忘掉直接抛。视觉追击型：清水晴天佳，新月期略有增益。钢丝前导防切线。"},
+ {name:"鱿鱼(枪乌贼)", months:[3,4,5,7,8,9], optT:"物候驱动", method:"夜钓木虾", bait:"木虾（无需真饵）", size:"100–400 g", peak:"夜间（灯光诱集区）", note:"春汛 3—5 月靠岸产卵；夏末秋初（7—9 月）生物量全年最大、群体移向 40–80 m 浅水——盛夏少数不降反升的目标种，夜钓正好避开日间高温。企沙、三墩、京族三岛、侨港是热门标点。"},
+ {name:"墨鱼",   months:[3,4,5], optT:"暖水性", method:"木虾 / 沉底", bait:"木虾、虾肉", size:"200–800 g", note:"春汛随鱿鱼靠岸产卵，防城港西海区沿岸是索饵繁殖场，常与鱿鱼同场中钩。"},
+ {name:"红友(红鳍笛鲷)", months:[6,7,8,9,10,11], optT:"暖水性", method:"沉底 / 船钓", bait:"虾、小鱼、鱿鱼条", size:"1–5 kg", note:"秋汛主力，涠洲岛、冠头岭结构区出大物；开海后密度迅速恢复。"},
+ {name:"二长棘鲷", months:[11,12,1,2], optT:"冷凉偏暖", method:"深水船钓 / 远投沉底", bait:"虾、沙蚕", size:"0.3–1 kg", note:"北部湾优势种。11 月洄游至北海—涠洲浅海，12 月产卵；幼鱼保护区（12.15—翌年 5.20）请放流小规格渔获。"},
+ {name:"金线鱼", months:[9,10,11,12], optT:"暖水性", method:"船钓沉底", bait:"虾、鱿鱼条", size:"0.2–0.8 kg", note:"秋汛主捕经济鱼，湾中部渔场集群，深水船钓季常客。"},
+ {name:"金鼓(金钱鱼)", months:[5,6,7,8,9], optT:"22–28℃", method:"筏钓 / 排区手竿", bait:"虾肉、面饵、附着生物", size:"0.2–1 kg", peak:"白天（排区可试夜——证据有冲突）", note:"严格暖水的河口客：5—9 月水温 27–30℃ 恰逢繁殖期为旺季，12—3 月近岸基本无口。主场是蚝排/鱼排网箱边、蚵棚、红树林 0–5 m 水层，刮食附着生物。潮汐抓高潮前后 ±2 小时。昼夜属性文献与经验冲突：生物学资料称白天活动，排区钓友称夜间好钓（排区掉落饲料改变了节律）——两个时段都试，以本地排区实测为准。"},
+ {name:"泥猛(褐篮子鱼)", months:[4,5,6,9,10,11,12], optT:"23–28℃", method:"矶钓 / 排区手竿", bait:"海藻、面饵、虾肉", size:"0.2–0.8 kg", peak:"清晨 6 时钓底 → 10 时后上浮钓浅（约 1.5 m）", note:"全年出勤率最高的双峰鱼：4—6 月繁殖期大个体集群近岸礁缘（岸钓大泥猛黄金期），9—12 月秋冬肥美；7—8 月多为小个体「指甲泥」。广温性（可耐 12–32.5℃），潮汐约束最弱，渔排固定窝点全天有口。2025 年研究证实其产卵受月相同步（新月期性腺指数最高）——月相实证为数不多的鱼种。注意背鳍硬棘有毒，摘钩用毛巾裹鱼。"},
+ {name:"海鲶",   months:[5,6,7,8,9], optT:"暖水性", method:"沉底 / 筏钓", bait:"虾肉、鱼肉", size:"0.5–2 kg", note:"龙门江口是重要洄游产卵场（历史年产约 500 吨），茅尾海洄游季稳定出鱼。"},
+];
+const monthInSeason = (f,m)=>f.months.includes(m);
+const monthComing   = (f,m)=>f.months.includes(m%12+1) && !monthInSeason(f,m);
+
+/* ---------- 装备数据 ---------- */
+const GEAR = {
+  must:["救生衣（非充气玩具款，认证浮力背心）","防滑鞋 / 矶钓钉鞋","防晒：帽子 + 冰袖 + SPF50 防晒霜","饮用水 ≥ 1.5 L + 简易干粮","头灯（傍晚收竿后照明）","手机防水袋 + 充电宝","创可贴 + 消毒棉片"],
+  method:{
+   "岸钓沉底":["3.6–4.2 m 海竿","4000 型纺车轮 + 3 号 PE 线","沉底钓组（通心铅 20–30 g + 双钩）","备用铅坠与钩（各 5 套起）","虾肉 / 沙蚕 / 鱿鱼条","竿架（堤岸栏杆款）"],
+   "矶钓":["5.3 m 矶钓竿（1.5–2 号）","2500–3000 型手刹轮","阿波浮游钓组 + 咬铅","碳素子线 4–6 号","南极虾（饵+打窝）","钉鞋 + 救生衣（强制）"],
+   "滩钓":["4.05–4.5 m 远投竿","远投轮 + 2 号 PE / 尼龙线","串钩钓组 + 40–60 g 铅坠","沙蚕 / 红虫","沙滩三脚架","涉水裤（可选）"],
+   "路亚":["2.4–2.7 m 路亚竿（ML–M 调）","2500 型纺车轮 + 1.5 号 PE","米诺 / VIB / 铁板若干","碳前导 1 m + 路亚钳","控鱼器","拟饵盒"],
+   "筏钓":["1.2–1.5 m 筏竿","筏钓轮 + 2 号线","筏钓串钩 / 单钩钓组","虾肉 / 颗粒饲料","折叠椅 + 遮阳伞","联系蚝排便船电话"],
+   "夜钓":["强光头灯 + 备用灯（双保险）","水上诱鱼灯（绿光诱鱿鱼乌头）","木虾 / 夜光珠钓组","反光救生衣 + 防滑鞋","防蚊液 + 薄外套（后半夜海风凉）","结伴同行，白天提前踩点确认退路"],
+  },
+  weather:{
+   "晴天":["加倍防晒，2 小时补涂一次","偏光墨镜（看鱼星/水下礁）","饮水量翻倍","鱼获保温箱+冰袋（高温易变质）"],
+   "阴天":["轻便外套（海面风凉）","正常防晒不可省（紫外线穿透云层）","备用干衣物"],
+   "小雨":["冲锋衣 / 雨衣（禁用雨伞，防雷+防风）","电子设备防水袋","防滑鞋加倍注意","雷电预警立即收竿撤离"],
+   "大风":["铅坠加重 10–20 g","缩短子线防缠绕","收起遮阳伞与松散物品","评估是否改内湾钓点"],
+  },
+};
+const GEAR_METHODS = Object.keys(GEAR.method);
+const GEAR_WEATHERS = Object.keys(GEAR.weather);
+</script>
+
+<script>
+/* =========================================================
+   模块二 · 交互地图
+   ========================================================= */
+let curveSpotId = "waisha";
+const cmpSet = new Set();
+const CITIES = ["防城港","钦州","北海"];
+const cityX = {"防城港":150,"钦州":342,"北海":498};
+
+function buildMap(){
+  const svg = $("mapSvg");
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (tag,attrs)=>{ const e=document.createElementNS(NS,tag); for(const k in attrs)e.setAttribute(k,attrs[k]); return e; };
+  // 海面
+  svg.appendChild(mk("rect",{x:0,y:0,width:640,height:420,fill:"#0A1820",rx:12}));
+  // 陆地（海岸线上方）
+  const land = mk("path",{d:"M20,200 C80,210 120,235 165,242 C215,250 250,258 290,236 C330,215 360,228 400,215 C445,200 480,205 520,180 C555,160 600,175 640,178 L640,20 L20,20 Z",
+    fill:"#10222B",stroke:"#2A4D5B","stroke-width":1.5});
+  svg.appendChild(land);
+  // 涠洲岛
+  svg.appendChild(mk("ellipse",{cx:492,cy:338,rx:26,ry:14,fill:"#10222B",stroke:"#2A4D5B","stroke-width":1.2}));
+  // 海面波纹装饰
+  for(let i=0;i<5;i++){
+    svg.appendChild(mk("path",{d:`M${60+i*110},${330+(i%2)*30} q15,-8 30,0 q15,8 30,0`,stroke:"#16303C",fill:"none","stroke-width":2,"stroke-linecap":"round"}));
+  }
+  // 海标注
+  const sea = mk("text",{x:320,y:395,"text-anchor":"middle",fill:"#2A4D5B","font-size":13,"letter-spacing":6});
+  sea.textContent = "北 部 湾"; svg.appendChild(sea);
+  // 城市标签（可点击展开）
+  CITIES.forEach(c=>{
+    const t = mk("text",{x:cityX[c],y:60,"text-anchor":"middle",fill:"#E9B44C","font-size":16,"font-weight":800,style:"cursor:pointer","letter-spacing":3});
+    t.textContent = c;
+    t.onclick = ()=>toggleCity(c);
+    svg.appendChild(t);
+    const line = mk("path",{d:`M${cityX[c]},70 L${cityX[c]},150`,stroke:"#1E3B47","stroke-dasharray":"3 4"});
+    svg.appendChild(line);
+  });
+  // 钓点
+  SPOTS.forEach(s=>{
+    const g = mk("g",{style:"cursor:pointer"});
+    const halo = mk("circle",{cx:s.x,cy:s.y,r:11,fill:dangerColor(s.danger),opacity:0.18});
+    const dot = mk("circle",{cx:s.x,cy:s.y,r:6,fill:dangerColor(s.danger),stroke:"#081318","stroke-width":2});
+    dot.dataset.spot = s.id;
+    const label = mk("text",{x:s.x,y:s.y-13,"text-anchor":"middle",fill:"#C7D8DC","font-size":11});
+    label.textContent = s.name;
+    g.appendChild(halo); g.appendChild(dot); g.appendChild(label);
+    g.onclick = ()=>selectSpot(s.id,true);
+    svg.appendChild(g);
+    s._dot = dot; s._halo = halo;
+  });
+}
+function highlightDots(){
+  SPOTS.forEach(s=>{
+    const sel = s.id===curveSpotId;
+    s._dot.setAttribute("r", sel?8:6);
+    s._dot.setAttribute("stroke", sel?"#35D7B6":"#081318");
+    s._halo.setAttribute("opacity", sel?0.4:0.18);
+  });
+}
+
+function buildSpotList(){
+  const box = $("spotList"); box.innerHTML="";
+  CITIES.forEach(c=>{
+    const head = document.createElement("div");
+    head.className="city-head"; head.dataset.city=c;
+    head.innerHTML = `<span class="arrow">▼</span>${c} <span class="tag">${SPOTS.filter(s=>s.city===c).length} 个钓点</span>`;
+    head.onclick = ()=>toggleCity(c);
+    box.appendChild(head);
+    const wrap = document.createElement("div");
+    wrap.id = "city-"+c;
+    SPOTS.filter(s=>s.city===c).forEach(s=>{
+      const el = document.createElement("div");
+      el.className = "spot-item"+(s.id===curveSpotId?" sel":"");
+      el.id = "item-"+s.id;
+      el.innerHTML = `
+        <label class="cmp"><input type="checkbox" data-cmp="${s.id}" ${cmpSet.has(s.id)?"checked":""}> 对比</label>
+        <div class="top"><b>${s.name}</b>
+          <span class="tag teal">${s.type}</span>
+          <span class="tag ${s.danger<=2?"green":s.danger===3?"sand":"red"}">风险${dangerText(s.danger)}</span>
+        </div>
+        <div class="meta">目标鱼：${s.fish.join("、")}</div>`;
+      el.onclick = e=>{
+        if(e.target.dataset.cmp!==undefined){ toggleCmp(s.id, e.target.checked); return; }
+        if(e.target.closest(".cmp")) return;
+        selectSpot(s.id,true);
+      };
+      wrap.appendChild(el);
+    });
+    box.appendChild(wrap);
+  });
+}
+function toggleCity(c){
+  const wrap = $("city-"+c);
+  const head = document.querySelector(`.city-head[data-city="${c}"]`);
+  const closed = wrap.style.display==="none";
+  wrap.style.display = closed?"":"none";
+  head.classList.toggle("closed", !closed);
+}
+function selectSpot(id, scroll){
+  curveSpotId = id;
+  document.querySelectorAll(".spot-item").forEach(e=>e.classList.remove("sel"));
+  const it = $("item-"+id); if(it) it.classList.add("sel");
+  highlightDots();
+  const s = SPOTS.find(x=>x.id===id);
+  const d = $("spotDetail");
+  d.style.display="block";
+  d.innerHTML = `
+    <h4>${s.city} · ${s.name}</h4>
+    <div class="kv">
+      <dt>钓点类型</dt><dd>${s.type}（${s.terrain}）</dd>
+      <dt>危险等级</dt><dd><span class="danger-pip">${[1,2,3,4,5].map(i=>`<i class="${i<=s.danger?dangerClass(s.danger):""}"></i>`).join("")}</span> ${dangerText(s.danger)}风险</dd>
+      <dt>最佳目标鱼</dt><dd>${s.fish.join("、")}</dd>
+      <dt>最佳时段/季</dt><dd>${s.best}</dd>
+      <dt>停车信息</dt><dd>${s.parking}</dd>
+      <dt>新手友好</dt><dd><span class="stars">${"★".repeat(s.newbie)}${"☆".repeat(5-s.newbie)}</span></dd>
+    </div>
+    <div class="nx">${s.desc}</div>`;
+  $("curveSpotName").textContent = `${s.city} · ${s.name}`;
+  renderCurve();
+  // 用户主动点选时把详情卡滚进视野（手机端详情在列表下方，不滚会看不见变化）
+  if(scroll) d.scrollIntoView({behavior:"smooth", block:"nearest"});
+  if(typeof wz!=="undefined" && wz.spot!==id){ wz.spot=id; wz.city=s.city; buildWizard(); }
+}
+function toggleCmp(id, on){
+  if(on){ if(cmpSet.size>=2){ buildSpotList(); return; } cmpSet.add(id); }
+  else cmpSet.delete(id);
+  $("compareBtn").disabled = cmpSet.size!==2;
+  $("compareBtn").textContent = `对比已选钓点（${cmpSet.size}/2）`;
+}
+$("clearCmp").onclick = ()=>{ cmpSet.clear(); $("compareBtn").disabled=true; $("compareBtn").textContent="对比已选钓点（0/2）"; $("comparePanel").innerHTML=""; buildSpotList(); };
+$("compareBtn").onclick = ()=>{
+  const [a,b] = [...cmpSet].map(id=>SPOTS.find(s=>s.id===id));
+  const tm = addDays(TODAY,1);
+  const tia = tideInfo(tm, CITY_TIDE_OFFSET[a.city]||0), tib = tideInfo(tm, CITY_TIDE_OFFSET[b.city]||0);
+  const w = dayWeather(tm);
+  const bwA = bestWindows(tm, a), bwB = bestWindows(tm, b);
+  const avgTideOf = ti => {let s=0;for(let h=5;h<=22;h++)s+=tideScore(h,ti.highClock,ti.sp);return Math.round(s/18);};
+  const avgTideA = avgTideOf(tia), avgTideB = avgTideOf(tib);
+  const weatherFit = Math.round(0.65*windScore(w.windDir,w.windForce)+0.35*waterScore(waterTempOf(tm)));
+  const overall = (spot, avgTide) => {
+    // 地形修正：堤岸/内湾/码头抗风浪强，礁石/外岛受风浪影响大
+    const robust = {"堤岸":6,"内湾":8,"码头":6,"沙滩":0,"礁石":-6,"岛礁":-8,"沙滩+礁石":-2}[spot.terrain]||0;
+    return Math.max(5, Math.min(99, Math.round(0.5*avgTide+0.5*weatherFit) + robust ));
+  };
+  const row = (label, fa, fb, suffix="") => `<tr><th>${label}</th><td>${fa}${suffix}</td><td>${fb}${suffix}</td></tr>`;
+  const barRow = (label, va, vb) => `<tr><th>${label}</th>
+    <td><div class="fitbar"><i style="width:${va}%"></i></div> <span style="font-family:var(--mono)">${va}</span></td>
+    <td><div class="fitbar"><i style="width:${vb}%"></i></div> <span style="font-family:var(--mono)">${vb}</span></td></tr>`;
+  $("comparePanel").innerHTML = `
+    <div class="card" style="margin-top:18px">
+      <h3 style="font-size:16px;margin-bottom:6px">明天（${dateStr(tm)} · 农历${lunarName(tia.ld)} · ${tia.type}）两钓点适配度对比</h3>
+      <div class="table-scroll"><table class="compare-table">
+        <tr><th style="width:130px"></th><th>${a.city} · ${a.name}</th><th>${b.city} · ${b.name}</th></tr>
+        ${barRow("潮汐适配", avgTideA, avgTideB)}
+        ${barRow("天气适配", weatherFit, weatherFit)}
+        ${barRow("综合指数（含地形）", overall(a, avgTideA), overall(b, avgTideB))}
+        ${row("明日高潮", hhmm(tia.highClock)+" · "+tia.highH.toFixed(1)+"m", hhmm(tib.highClock)+" · "+tib.highH.toFixed(1)+"m")}
+        ${row("主推荐时段", hhmm(bwA.picked[0].start)+"–"+hhmm(bwA.picked[0].end), hhmm(bwB.picked[0].start)+"–"+hhmm(bwB.picked[0].end))}
+        ${row("钓点类型", a.type, b.type)}
+        ${row("危险等级", dangerText(a.danger)+"风险", dangerText(b.danger)+"风险")}
+        ${row("新手友好", "★".repeat(a.newbie), "★".repeat(b.newbie))}
+        ${row("目标鱼", a.fish.join("、"), b.fish.join("、"))}
+        ${row("最佳时段/季", a.best, b.best)}
+        ${row("停车", a.parking, b.parking)}
+      </table></div>
+      <div class="nx">潮汐按各城市实测潮时偏移修正（防城港约比北海晚 30 分钟、钦州约 15 分钟），跨城对比时高潮时刻与主推荐时段会真实拉开；天气为区域级预报，同城一致。优先选综合指数高且风险低的一侧。</div>
+    </div>`;
+  $("comparePanel").scrollIntoView({behavior:"smooth", block:"nearest"});
+};
+
+/* =========================================================
+   模块三 · 当前潮位 + 大潮日历与逐日表
+   ========================================================= */
+function buildCalendar(){
+  const strip = $("calStrip"); strip.innerHTML="";
+  for(let i=0;i<14;i++){
+    const d = addDays(TODAY,i);
+    const ti = tideInfo(d), tt = ti.type;
+    const el = document.createElement("div");
+    el.className = "cal-day"+(i===0?" today":"");
+    el.innerHTML = `<div class="d">${i===0?"今天":i===1?"明天":dateStr(d)}</div>
+      <div class="l">农历${lunarName(ti.ld)}</div>
+      <div class="t ${tt==="大潮"||tt==="巨潮"?"big":tt==="中潮"?"mid":"small"}">${tt}${ti.mixed?'<div style="font-size:9px;font-weight:400;margin-top:2px">双潮</div>':""}</div>
+      ${ti.real?"":'<div style="font-size:9px;color:var(--dim);margin-top:2px">模型推算</div>'}`;
+    strip.appendChild(el);
+  }
+}
+
+/* ---------- 现在潮位（实时卡，每分钟自动刷新） ---------- */
+function renderNowTide(){
+  const box = $("nowTide"); if(!box) return;
+  const now = new Date();
+  const h = now.getHours()+now.getMinutes()/60;
+  const ti = tideInfo(now);
+  const lv = tideLevel(h, ti.highClock);
+  const hgt = ti.msl + ti.amp*lv;
+  const ph = tidePhase(h, ti.highClock);
+  const rising = tideLevel(h+0.05, ti.highClock) > lv;
+  const dHigh = ((ti.highClock-h)%24+24)%24;
+  const dLow  = ((ti.lowClock -h)%24+24)%24;
+  const nextIsHigh = dHigh<=dLow;
+  const nd = nextIsHigh? dHigh : dLow;
+  const nh = Math.floor(nd), nm = Math.round((nd-nh)*60);
+  const cd = (nh? nh+"小时":"") + nm + "分";
+  const stateTxt = ph.slack? ph.name : (rising?"涨潮中":"退潮中");
+  const stateColor = ph.slack? "var(--red)" : rising? "var(--teal)" : "var(--sand)";
+  box.innerHTML = `
+    <div>
+      <div class="lv-num">${hgt.toFixed(1)}<small> m</small></div>
+      <div class="lv-cap">当前潮位 · 今天 ${dateStr(now)}</div>
+    </div>
+    <div class="nt-mid">
+      <b style="color:${stateColor}">${stateTxt}</b><span style="font-size:12.5px;color:var(--mut)">${ph.gold?"　· 黄金窗口，鱼口最猛":ph.slack?"　· 退潮中段弱口，适合休整":""}</span>
+      <div class="nt-bar"><i style="width:${Math.round((lv+1)/2*100)}%"></i></div>
+      <div class="sub">今日 农历${lunarName(ti.ld)} · ${ti.type}${ti.mixed?"（双潮日，以主潮计）":""}：低潮 ${hhmm(ti.lowClock)}（${ti.lowH.toFixed(1)} m）→ 高潮 ${hhmm(ti.highClock)}（${ti.highH.toFixed(1)} m）${ti.real?" · 实测表":" · 模型估算"}</div>
+    </div>
+    <div class="nt-next">
+      <div class="cd">${cd}</div>
+      <div class="lbl">后${nextIsHigh?"高潮":"低潮"}（${nextIsHigh?hhmm(ti.highClock):hhmm(ti.lowClock)}）</div>
+    </div>`;
+}
+setInterval(renderNowTide, 60000);
+
+/* ---------- 逐日潮汐表（未来 7 天） ---------- */
+function buildTideTable(){
+  const tb = $("tideTable"); if(!tb) return;
+  const wk = ["日","一","二","三","四","五","六"];
+  let html = `<tr><th>日期</th><th>农历</th><th>潮型</th><th>低潮</th><th>高潮</th><th>潮差</th><th>潮汛</th><th>数据</th></tr>`;
+  for(let i=0;i<7;i++){
+    const d = addDays(TODAY,i);
+    const ti = tideInfo(d);
+    const lowCell = `${hhmm(ti.lowClock)} · ${ti.lowH.toFixed(1)} m` + (ti.mixed&&ti.low2!=null?`<br>${hhmm(ti.low2)} · ${(ti.low2H??ti.lowH).toFixed(1)} m`:"");
+    const highCell = `${hhmm(ti.highClock)} · ${ti.highH.toFixed(1)} m` + (ti.mixed&&ti.high2!=null?`<br>${hhmm(ti.high2)} · ${(ti.high2H??ti.highH).toFixed(1)} m`:"");
+    html += `<tr${i===0?' class="today"':""}>
+      <td>${i===0?"今天":i===1?"明天":dateStr(d)}　周${wk[d.getDay()]}</td>
+      <td>${lunarName(ti.ld)}</td>
+      <td><span class="tag ${ti.type==="大潮"||ti.type==="巨潮"?"sand":ti.type==="中潮"?"teal":""}">${ti.type}${ti.mixed?"·双潮":""}</span></td>
+      <td class="mono">${lowCell}</td>
+      <td class="mono">${highCell}</td>
+      <td class="mono">${(ti.highH-ti.lowH).toFixed(1)} m</td>
+      <td>${ti.xun}</td>
+      <td style="color:var(--dim);font-size:12px">${ti.real?"实测表":"模型"}</td>
+    </tr>`;
+  }
+  tb.innerHTML = html;
+}
+
+/* =========================================================
+   模块一 · 全天评分曲线
+   ========================================================= */
+/* 双潮日潮位：按当日实测极值点分段余弦插值（主潮单峰模型画不出两组高低潮，8-16~8-20 用这条） */
+function mixedTideLevel(t, ti){
+  const ev = [
+    {t:ti.low2,      h:ti.low2H,  k:-1},
+    {t:ti.high2,     h:ti.high2H, k:+1},
+    {t:ti.lowClock,  h:ti.lowH,   k:-1},
+    {t:ti.highClock, h:ti.highH,  k:+1},
+  ].sort((a,b)=>a.t-b.t);
+  const pre = {...ev[ev.length-1]}; pre.t -= 24.8;   // 前一周期末位极值
+  const post = {...ev[0]};          post.t += 24.8;  // 后一周期首位极值
+  const all = [pre, ...ev, post];
+  let a = all[0], b = all[all.length-1];
+  for(let i=0;i<all.length-1;i++){
+    if(t>=all[i].t && t<=all[i+1].t){ a=all[i]; b=all[i+1]; break; }
+  }
+  const span = Math.max(0.5, b.t-a.t);
+  const h = a.h + (b.h-a.h)*(1-Math.cos(Math.PI*(t-a.t)/span))/2;
+  const hi = Math.max(...ev.map(e=>e.h)), lo = Math.min(...ev.map(e=>e.h));
+  return ((h-lo)/Math.max(0.1, hi-lo))*2-1; // 归一化 [-1,1] 供虚线绘制
+}
+
+let curveDay = 1;
+function renderCurve(){
+  const cv = $("curveCanvas"), ctx = cv.getContext("2d");
+  const dpr = window.devicePixelRatio||1;
+  const cssW = cv.clientWidth||cv.width, cssH = cssW<600? Math.round(cssW*0.62) : Math.round(cssW*420/1060);
+  cv.width = cssW*dpr; cv.height = cssH*dpr; cv.style.height=cssH+"px";
+  ctx.scale(dpr,dpr);
+  const W=cssW,H=cssH;
+  const date = addDays(TODAY, curveDay);
+  const {hours, picked, ti, w, sst, season} = bestWindows(date, SPOTS.find(x=>x.id===curveSpotId));
+  const padL=44,padR=16,padT=26,padB=34, iw=W-padL-padR, ih=H-padT-padB;
+  const xOf = h => padL+iw*(h-5)/17;
+  const yOf = s => padT+ih*(1-s/100);
+  ctx.clearRect(0,0,W,H);
+  // 最佳时段高亮
+  picked.forEach((p,i)=>{
+    ctx.fillStyle = i===0?"rgba(53,215,182,.12)":"rgba(233,180,76,.08)";
+    ctx.fillRect(xOf(p.start),padT,iw*(p.end-p.start)/17,ih);
+  });
+  // 网格
+  ctx.font="11px Menlo,monospace"; ctx.textAlign="center";
+  for(let s=0;s<=100;s+=25){
+    ctx.strokeStyle="#16282F"; ctx.beginPath(); ctx.moveTo(padL,yOf(s)); ctx.lineTo(padL+iw,yOf(s)); ctx.stroke();
+    ctx.fillStyle="#5F7A84"; ctx.fillText(s, padL-16, yOf(s)+4);
+  }
+  for(let h=5;h<=22;h+= (W<600?4:2)){
+    ctx.fillStyle="#5F7A84"; ctx.fillText(pad(h)+":00", xOf(h), H-12);
+  }
+  // 折线
+  ctx.beginPath();
+  hours.forEach((p,i)=>{ i===0?ctx.moveTo(xOf(p.h),yOf(p.s)):ctx.lineTo(xOf(p.h),yOf(p.s)); });
+  ctx.strokeStyle="#35D7B6"; ctx.lineWidth=2.5; ctx.lineJoin="round"; ctx.stroke();
+  // 填充
+  const grad = ctx.createLinearGradient(0,padT,0,padT+ih);
+  grad.addColorStop(0,"rgba(53,215,182,.22)"); grad.addColorStop(1,"rgba(53,215,182,0)");
+  ctx.lineTo(xOf(22),padT+ih); ctx.lineTo(xOf(5),padT+ih); ctx.closePath();
+  ctx.fillStyle=grad; ctx.fill();
+  // 叠加潮位虚线（归一化显示，看指数与潮位的联动；双潮日按实测极值插值，画出两组高低潮）
+  ctx.beginPath();
+  const mixedOK = ti.mixed && ti.high2!=null && ti.low2!=null && ti.high2H!=null && ti.low2H!=null;
+  for(let h=5;h<=22;h+=0.25){
+    const lv = mixedOK ? mixedTideLevel(h,ti) : tideLevel(h,ti.highClock);
+    const y=padT+ih*(1-(lv+1)/2);
+    h===5?ctx.moveTo(xOf(h),y):ctx.lineTo(xOf(h),y);
+  }
+  ctx.strokeStyle="rgba(141,168,177,.55)"; ctx.lineWidth=1.5; ctx.setLineDash([5,4]); ctx.stroke(); ctx.setLineDash([]);
+  // 数据点
+  hours.forEach(p=>{
+    ctx.beginPath(); ctx.arc(xOf(p.h),yOf(p.s),3,0,7);
+    ctx.fillStyle = p.s>=70?"#35D7B6":p.s>=50?"#E9B44C":"#F26157"; ctx.fill();
+  });
+  // 天气摘要（窄屏精简版）
+  const srcTag = w.src==="实时" ? " · 实时气象" : w.src==="缓存" ? " · 缓存气象" : " · 模拟气象";
+  const summary = W<600
+    ? `${dateStr(date)} ${ti.type} · ${w.windDir}风${w.windForce}级 · 水温${sst}℃ · 高潮${hhmm(ti.highClock)}${w.src==="实时"?" · 实时":w.src==="缓存"?" · 缓存":""}`
+    : `${dateStr(date)} · 农历${lunarName(ti.ld)} · ${ti.type} · ${w.windDir}风${w.windForce}级 · 水温${sst}℃ · ${season.name}${season.bonus>0?"+"+season.bonus:""} · 高潮${hhmm(ti.highClock)}${srcTag}`;
+  ctx.textAlign="left"; ctx.fillStyle="#8DA8B1"; ctx.font="12px -apple-system,'PingFang SC',sans-serif";
+  ctx.fillText(summary, padL, 14);
+  // 图例（右上，窄屏省略避免与摘要重叠）
+  if(W>=600){
+    ctx.textAlign="right"; ctx.fillStyle="#5F7A84";
+    ctx.fillText("—— 指数　╌ 潮位", W-padR, 14);
+    ctx.textAlign="left";
+  }
+  // 悬浮交互（桌面鼠标 + 移动触屏）
+  cv.onmousemove = e=>{
+    const r = cv.getBoundingClientRect();
+    const hx = e.clientX-r.left;
+    const h = Math.round((hx-padL)/iw*17)+5;
+    scheduleCurveHover(h);
+  };
+  cv.onmouseleave = ()=>scheduleCurveHover(null);
+  const touchHover = e=>{
+    const r = cv.getBoundingClientRect();
+    const hx = e.touches[0].clientX-r.left;
+    const h = Math.round((hx-padL)/iw*17)+5;
+    scheduleCurveHover(h);
+    if(e.cancelable) e.preventDefault();
+  };
+  cv.ontouchstart = touchHover;
+  cv.ontouchmove = touchHover;
+  cv._geo = {padL,iw,hours,date};
+  cv._data = {hours};
+  cv._cssH = cssH;
+  renderChips(picked, hours);
+}
+/* hover 全图重绘较贵，用 rAF 节流：一帧最多重绘一次（手机连续滑动防掉帧） */
+let curveHoverRaf = 0;
+function scheduleCurveHover(h){
+  if(curveHoverRaf) return;
+  curveHoverRaf = requestAnimationFrame(()=>{ curveHoverRaf=0; renderCurveHover(h); });
+}
+function renderCurveHover(h){
+  const cv=$("curveCanvas");
+  renderCurveStatic();
+  if(h===null||h<5||h>22) return;  const ctx=cv.getContext("2d");
+  const {hours} = cv._data;
+  const p = hours.find(x=>x.h===h); if(!p)return;
+  const W=cv.clientWidth, cssH=cv._cssH;
+  const padL=44,padR=16,padT=26,padB=34, iw=W-padL-padR, ih=cssH-padT-padB;
+  const xOf = hh => padL+iw*(hh-5)/17;
+  const yOf = s => padT+ih*(1-s/100);
+  ctx.strokeStyle="rgba(234,243,239,.4)"; ctx.setLineDash([4,4]);
+  ctx.beginPath(); ctx.moveTo(xOf(h),padT); ctx.lineTo(xOf(h),padT+ih); ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(xOf(h),yOf(p.s),6,0,7); ctx.fillStyle="#EAF3EF"; ctx.fill();
+  ctx.font="bold 13px Menlo,monospace"; ctx.textAlign="center";
+  ctx.fillStyle="#EAF3EF";
+  ctx.fillText(`${pad(h)}:00  指数 ${p.s}`, Math.min(Math.max(xOf(h),70),W-70), padT+16);
+}
+/* 为避免重复计算，把静态层拆出来 */
+function renderCurveStatic(){ renderCurve(); }
+function renderChips(picked, hours){
+  const box = $("windowChips"); box.innerHTML="";
+  const labels = ["主推荐","备选一","备选二"];
+  const reasons = [];
+  picked.forEach((p,i)=>{
+    const peak = hours.filter(x=>x.h>=p.start&&x.h<=p.end).reduce((a,b)=>a.s>b.s?a:b);
+    const el = document.createElement("div");
+    el.className = "wchip "+(i===0?"main":"alt");
+    el.innerHTML = `<b>${hhmm(p.start)} – ${hhmm(p.end)}</b> · 均分 ${Math.round(p.avg)}
+      <span class="rs">${labels[i]} · 峰值 ${pad(peak.h)}:00（${peak.s} 分）</span>`;
+    box.appendChild(el);
+  });
+}
+document.querySelectorAll("#dayTabs button").forEach(b=>{
+  b.onclick=()=>{
+    curveDay=+b.dataset.day;
+    document.querySelectorAll("#dayTabs button").forEach(x=>x.classList.toggle("on",x===b));
+    renderCurve();
+  };
+});
+</script>
+
+<script>
+/* =========================================================
+   模块四 · 鱼种季节图谱
+   ========================================================= */
+/* 月份综合评级（《逐月开口日历》三因子合成）：下划线颜色=评级，金 5★ / 青 4★ / 灰 3★ / 暗 2★ */
+const MONTH_RATING = {1:3,2:3,3:4,4:4,5:4,6:3,7:2,8:2,9:4,10:5,11:5,12:3};
+const RATE_COLORS = {5:"#E9B44C",4:"#35D7B6",3:"#8DA8B1",2:"#5F7A84"};
+let fishMonth = TODAY.getMonth()+1;
+function buildHeatmap(){
+  const box = $("fishHeat"); if(!box) return;
+  const cur = TODAY.getMonth()+1;
+  let html = '<div class="hm"><div class="hl"></div>';
+  for(let m=1;m<=12;m++) html += `<div class="hd${m===cur?" cur":""}${m===fishMonth?" sel":""}" data-m="${m}">${m}</div>`;
+  FISH.forEach(f=>{
+    html += `<div class="hl">${f.name.replace(/\(.*\)/,"")}</div>`;
+    for(let m=1;m<=12;m++){
+      html += `<div class="hc${monthInSeason(f,m)?" in":""}${m===cur?" cur":""}" data-m="${m}"></div>`;
+    }
+  });
+  html += "</div>";
+  box.innerHTML = html;
+  box.querySelectorAll(".hd,.hc").forEach(c=>c.onclick=()=>{ fishMonth=+c.dataset.m; buildFish(); });
+}
+function buildFish(){
+  buildHeatmap();
+  const tabs = $("monthTabs");
+  tabs.innerHTML="";
+  for(let m=1;m<=12;m++){
+    const b=document.createElement("button");
+    b.textContent=m+"月"; b.classList.toggle("on",m===fishMonth);
+    const r = MONTH_RATING[m];
+    b.style.borderBottom = "3px solid "+RATE_COLORS[r];
+    b.title = `${m}月综合评级 ${"★".repeat(r)}${"☆".repeat(5-r)}`;
+    b.onclick=()=>{ fishMonth=m; buildFish(); };
+    tabs.appendChild(b);
+  }
+  const grid = $("fishGrid"); grid.innerHTML="";
+  const sorted = [...FISH].sort((a,b)=>{
+    const ra = monthInSeason(a,fishMonth)?0:monthComing(a,fishMonth)?1:2;
+    const rb = monthInSeason(b,fishMonth)?0:monthComing(b,fishMonth)?1:2;
+    return ra-rb;
+  });
+  sorted.forEach(f=>{
+    const inS = monthInSeason(f,fishMonth), coming = monthComing(f,fishMonth);
+    const spots = SPOTS.filter(s=>s.fish.some(x=>{
+      const base = f.name.replace(/\(.*\)/,"").replace("/乌头","");
+      return f.name.includes(x)||x.includes(base)||(f.name.includes("乌头")&&x==="乌头")||(f.name.includes("红友")&&x==="红友");
+    })).map(s=>s.name);
+    const el = document.createElement("div");
+    el.className="fish-card";
+    el.innerHTML = `
+      <div class="fh"><b>${f.name}</b>
+        ${inS?'<span class="tag teal">当季推荐</span>':coming?'<span class="tag sand">即将进入旺季</span>':'<span class="tag">过季</span>'}
+      </div>
+      <div style="font-size:12px;color:var(--dim);margin-top:4px">旺季：${f.months.map(m=>m+"月").join("、")} · 适温 ${f.optT}</div>
+      <div class="fd">
+        <div class="kv">
+          <dt>最佳钓法</dt><dd>${f.method}</dd>
+          ${f.peak?`<dt>最佳时段</dt><dd style="color:var(--teal);font-weight:700">${f.peak}</dd>`:""}
+          <dt>饵料建议</dt><dd>${f.bait}</dd>
+          <dt>常见体型</dt><dd>${f.size}</dd>
+          <dt>摄食适温</dt><dd>${f.optT}</dd>
+          <dt>推荐钓点</dt><dd>${spots.length?spots.slice(0,4).join("、"):"沿海各点均有"}</dd>
+        </div>
+        <div style="margin-top:6px">▸ ${f.note}</div>
+      </div>`;
+    el.onclick=()=>el.classList.toggle("open");
+    grid.appendChild(el);
+  });
+}
+
+/* =========================================================
+   模块五 · 装备引擎
+   ========================================================= */
+const gear = { method:"岸钓沉底", weather:"晴天", exp:"新手" };
+function segBuild(boxId, items, current, onpick){
+  const box=$(boxId); box.innerHTML="";
+  items.forEach(it=>{
+    const b=document.createElement("button");
+    b.textContent=it; b.classList.toggle("on",it===current);
+    b.onclick=()=>{ onpick(it); box.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.textContent===it)); };
+    box.appendChild(b);
+  });
+}
+function renderGear(){
+  const li = (t,must)=>`<div class="gear-item${must?" must":""}">${t}</div>`;
+  const must = gear.exp==="新手" ? GEAR.must : GEAR.must.slice(0,3).concat(["（进阶/老手：安全件默认已自备）"]);
+  $("gearMust").innerHTML = must.map(t=>li(t,true)).join("");
+  $("gearMethodList").innerHTML = GEAR.method[gear.method].map(t=>li(t)).join("");
+  $("gearWeatherList").innerHTML = GEAR.weather[gear.weather].map(t=>li(t)).join("");
+  $("copyOk").textContent="";
+}
+$("copyGear").onclick = async ()=>{
+  const lines = [
+    `【海钓装备清单】${gear.method} · ${gear.weather} · ${gear.exp}`,
+    "", "■ 新手必带（安全件）", ...GEAR.must.map(t=>"□ "+t),
+    "", `■ 钓法装备（${gear.method}）`, ...GEAR.method[gear.method].map(t=>"□ "+t),
+    "", `■ 天气适配（${gear.weather}）`, ...GEAR.weather[gear.weather].map(t=>"□ "+t),
+    "", "—— 海钓时刻助手 · 广西沿海",
+  ].join("\n");
+  try{ await navigator.clipboard.writeText(lines); $("copyOk").textContent="✓ 已复制到剪贴板"; }
+  catch(e){
+    const ta=document.createElement("textarea"); ta.value=lines; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand("copy"); $("copyOk").textContent="✓ 已复制到剪贴板"; }
+    catch(e2){ $("copyOk").textContent="复制失败，请手动选择文本"; }
+    ta.remove();
+  }
+};
+document.querySelectorAll(".drawer-head").forEach(h=>h.onclick=()=>h.parentElement.classList.toggle("open"));
+
+/* =========================================================
+   模块六 · 作钓记录（localStorage 本地存储，可导出 CSV）
+   ========================================================= */
+const LOG_KEY = "hf_logs";
+function loadLogs(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY))||[]; }catch(e){ return []; } }
+function saveLogs(a){ try{ localStorage.setItem(LOG_KEY, JSON.stringify(a)); }catch(e){} }
+function buildLogForm(){
+  $("logDate").value = dateKey(new Date());
+  const sp = $("logSpot");
+  SPOTS.forEach(s=>{ const o=document.createElement("option"); o.value=s.id; o.textContent=`${s.city} · ${s.name}`; sp.appendChild(o); });
+  sp.value = wz.spot||"waisha";
+  document.querySelectorAll("#logResult button").forEach(b=>{
+    b.onclick=()=>{ document.querySelectorAll("#logResult button").forEach(x=>x.classList.toggle("on",x===b)); };
+  });
+  $("logAdd").onclick = addLog;
+  $("logExport").onclick = exportLogs;
+  renderLogs();
+}
+function addLog(){
+  const d = $("logDate").value, sid = $("logSpot").value;
+  const rb = document.querySelector("#logResult button.on");
+  if(!d || !sid || !rb) return;
+  const s = SPOTS.find(x=>x.id===sid);
+  const logs = loadLogs();
+  logs.unshift({d, sid, city:s.city, name:s.name, win:$("logWindow").value, r:rb.dataset.r, t:Date.now()});
+  saveLogs(logs); renderLogs();
+  const btn = $("logAdd"); btn.textContent = "✓ 已记下"; btn.disabled = true;
+  setTimeout(()=>{ btn.textContent = "记一笔"; btn.disabled = false; }, 1200);
+}
+function delLog(t){ saveLogs(loadLogs().filter(l=>l.t!==t)); renderLogs(); }
+function renderLogs(){
+  const logs = loadLogs(), box = $("logList"), stat = $("logStat");
+  if(!logs.length){
+    box.innerHTML = `<div class="nx" style="margin:0">还没有记录。钓完回来花 5 秒记一笔，攒够 20 次就能看出「你的」鱼口规律。</div>`;
+    stat.textContent=""; return;
+  }
+  const good = logs.filter(l=>l.r==="爆护").length, mid = logs.filter(l=>l.r==="有口").length;
+  stat.textContent = `共 ${logs.length} 次出钓 · 爆护 ${good} 次（${Math.round(good/logs.length*100)}%）· 有口 ${mid} 次 · 空军 ${logs.length-good-mid} 次`;
+  const badge = r => r==="爆护"?'<span class="tag green">爆护</span>':r==="有口"?'<span class="tag teal">有口</span>':'<span class="tag">空军</span>';
+  box.innerHTML = logs.slice(0,30).map(l=>`
+    <div class="log-item">
+      <span class="mono" style="color:var(--mut)">${l.d}</span>
+      <span style="flex:1">${l.city} · ${l.name}　<span style="color:var(--dim);font-size:12px">${l.win||""}</span></span>
+      ${badge(l.r)}
+      <button class="log-del" onclick="delLog(${l.t})" title="删除">×</button>
+    </div>`).join("");
+}
+function exportLogs(){
+  const logs = loadLogs();
+  if(!logs.length){ $("logStat").textContent="暂无记录可导出"; return; }
+  const rows = [["日期","城市","钓点","时段","鱼获"], ...logs.map(l=>[l.d,l.city,l.name,l.win||"",l.r])];
+  const csv = "\ufeff" + rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+  a.download = "作钓记录.csv"; a.click();
+}
+
+/* =========================================================
+   分享卡绘制（首屏问答「生成分享卡约钓」使用）
+   ========================================================= */
+function drawShareCard(d, spotLabel, canvasId){
+  const cv=$(canvasId||"shareCanvas"); if(!cv)return;
+  const ctx=cv.getContext("2d");
+  const W=cv.width,H=cv.height;
+  ctx.fillStyle="#0B1B23"; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle="#1E3B47"; ctx.lineWidth=3; ctx.strokeRect(18,18,W-36,H-36);
+  ctx.textAlign="center";
+  ctx.fillStyle="#8DA8B1"; ctx.font="22px -apple-system,'PingFang SC',sans-serif";
+  ctx.fillText("海 钓 时 刻 助 手", W/2, 74);
+  ctx.fillStyle="#EAF3EF";
+  const title = `明天 · 去${spotLabel||"北海外沙岛"}钓鱼`;
+  let fs = 40;
+  ctx.font = `bold ${fs}px -apple-system,'PingFang SC',sans-serif`;
+  while(ctx.measureText(title).width > W-90 && fs>22){ fs-=2; ctx.font=`bold ${fs}px -apple-system,'PingFang SC',sans-serif`; }
+  ctx.fillText(title, W/2, 132);
+  ctx.fillStyle="#8DA8B1"; ctx.font="20px -apple-system,'PingFang SC',sans-serif";
+  ctx.fillText(`${dateStr(d.tm)} · 农历${lunarName(d.ti.ld)} · ${d.ti.type}`, W/2, 170);
+  // 分数圆环
+  const score=Math.round(d.main.avg);
+  ctx.beginPath(); ctx.arc(W/2,280,86,0,Math.PI*2); ctx.strokeStyle="#1E3B47"; ctx.lineWidth=14; ctx.stroke();
+  ctx.beginPath(); ctx.arc(W/2,280,86,-Math.PI/2,-Math.PI/2+Math.PI*2*score/100);
+  ctx.strokeStyle="#35D7B6"; ctx.lineCap="round"; ctx.stroke();
+  ctx.fillStyle="#35D7B6"; ctx.font="bold 64px Menlo,monospace"; ctx.fillText(score, W/2, 300);
+  ctx.font="18px -apple-system,'PingFang SC',sans-serif"; ctx.fillStyle="#8DA8B1"; ctx.fillText("钓 鱼 指 数", W/2, 332);
+  // 信息条
+  const rows=[
+    ["最佳时段", `${hhmm(d.main.start)} – ${hhmm(d.main.end)}`],
+    ["潮汐", `高潮 ${hhmm(d.ti.highClock)} · 低潮 ${hhmm(d.ti.lowClock)}`],
+    ["天气", `${d.w.windDir}风 ${d.w.windForce} 级 · 水温 ${d.sst}℃ · ${d.season.name}`],
+    ["目标鱼", d.fish.join(" · ")],
+    ["装备", `沉底钓组 + ${d.w.windForce>=5?"25":"15"}g 铅坠 + 救生衣`],
+    ["安全", (d.s.terrain==="礁石"||d.s.terrain==="岛礁") ? `高潮 ${hhmm(d.ti.highClock)}，${hhmm((d.ti.highClock-1+24)%24)} 前撤离礁石` : "救生衣 + 防滑鞋常备，结伴出行"],
+  ];
+  ctx.textAlign="left";
+  rows.forEach((r,i)=>{
+    const y=416+i*52;
+    ctx.fillStyle="#5F7A84"; ctx.font="18px -apple-system,'PingFang SC',sans-serif";
+    ctx.fillText(r[0], 70, y);
+    ctx.fillStyle="#EAF3EF"; ctx.font="bold 21px -apple-system,'PingFang SC',sans-serif";
+    ctx.fillText(r[1], 180, y);
+    ctx.strokeStyle="#16303C"; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(70,y+16); ctx.lineTo(W-70,y+16); ctx.stroke();
+  });
+  ctx.textAlign="center"; ctx.fillStyle="#2A4D5B"; ctx.font="16px -apple-system,'PingFang SC',sans-serif";
+  ctx.fillText("北部湾 · 全日潮 · 看懂潮汐再下竿", W/2, H-46);
+}
+
+/* =========================================================
+   模块零 · 明日决策问答（第一屏主角）
+   ========================================================= */
+const wz = { city:"北海", spot:"waisha" };
+const WZ_CITIES = ["北海","防城港","钦州"];
+
+function windComment(w){
+  if(w.windForce>=6) return `风太大（${w.windForce} 级），不建议岸钓，可改内湾或改期`;
+  if(w.windForce===5) return `${w.windDir}风 5 级，抛投受影响，谨慎出行`;
+  if(["北","东北","西北"].includes(w.windDir)) return `${w.windDir}风 ${w.windForce} 级，离岸风让近岸水稳、鱼靠边，好口`;
+  if(["南","西南"].includes(w.windDir)) return `${w.windDir}风 ${w.windForce} 级，夏季季风，重点关注浪高`;
+  return `${w.windDir}风 ${w.windForce} 级，轻风稳定，利于作钓`;
+}
+function uvText(v){ return v<3?"弱":v<6?"中等":v<8?"强":v<11?"很强":"极强"; }
+function waterComment(sst){
+  if(sst>28) return `约 ${sst}℃，水温偏高——中午鱼口差，早晚下竿正好`;
+  if(sst>=20) return `约 ${sst}℃，黄金摄食带（20–28℃），全天有口`;
+  if(sst>=15) return `约 ${sst}℃，水温偏低，建议钓午后暖水`;
+  return `约 ${sst}℃，贴近鱼类低活性阈值，降低期待`;
+}
+function tideComment(ti, main){
+  const ph = tidePhase(main.start+1, ti.highClock);
+  const xun = ti.type==="小潮" ? "死汛，水流偏弱" : "活汛";
+  const goldTxt = {
+    floodEarly:"低潮后水位启动，鱼群进浅区索饵（实证 37% 咬钩时段）",
+    floodLate:"涨潮末段逼近满潮，实证咬钩占比最高的时段（44%）",
+    slackH:"满潮前后是实证高峰之一，不用急着收竿",
+  }[ph.key];
+  return `${ti.type}${xun}，高潮 ${hhmm(ti.highClock)}；推荐时段正处「${ph.name}」，${ph.gold&&goldTxt?goldTxt:"水流尚可"}`;
+}
+function safetyLine(s, ti){
+  const typhoon = (TODAY.getMonth()+1)>=6 && (TODAY.getMonth()+1)<=10;
+  let line;
+  if(s.terrain==="礁石"||s.terrain==="岛礁") line = `礁石地形：高潮 ${hhmm(ti.highClock)} 前 1 小时（${hhmm((ti.highClock-1+24)%24)}）必须撤到高位，穿钉鞋、结伴`;
+  else if(s.terrain.includes("沙滩")) line = `滩钓：留意离岸流（滩面深色无浪水道），涉水不过膝`;
+  else line = `${s.terrain}地形：无硬性撤离线，救生衣+防滑鞋常规备齐`;
+  if(typhoon) line += "；台风季（6—10 月）出发前查预警";
+  return line;
+}
+function buildWizard(){
+  const cb = $("wzCity"); cb.innerHTML="";
+  WZ_CITIES.forEach(c=>{
+    const b=document.createElement("button");
+    b.textContent=c; b.classList.toggle("on", c===wz.city);
+    b.onclick=()=>{ wz.city=c; wz.spot=SPOTS.find(s=>s.city===c).id; buildWizard(); };
+    cb.appendChild(b);
+  });
+  const sb = $("wzSpot"); sb.innerHTML="";
+  SPOTS.filter(s=>s.city===wz.city).forEach(s=>{
+    const b=document.createElement("button");
+    b.textContent=s.name; b.classList.toggle("on", s.id===wz.spot);
+    b.onclick=()=>{ wz.spot=s.id; buildWizard(); };
+    sb.appendChild(b);
+  });
+  renderWzResult();
+}
+function renderWzResult(){
+  const s = SPOTS.find(x=>x.id===wz.spot);
+  const tm = addDays(TODAY,1);
+  const bw = bestWindows(tm, s);
+  const {ti, w, sst, season} = bw;
+  const main = bw.picked[0];
+  const score = Math.round(main.avg);
+  const verdict = score>=85?["强烈推荐","green"]:score>=70?["适合出钓","teal"]:score>=55?["可以一试","sand"]:score>=40?["口慢，降低期待","sand"]:["不建议出钓","red"];
+  const month = tm.getMonth()+1;
+  let fish = FISH.filter(f=>monthInSeason(f,month) && s.fish.some(x=>f.name.includes(x))).map(f=>f.name);
+  if(!fish.length) fish = s.fish.slice(0,2);
+  $("wzResult").innerHTML = `
+    <div class="answer-main">
+      <div class="when">${hhmm(main.start)} – ${hhmm(main.end)}</div>
+      <div class="meta">
+        <b>明天（${dateStr(tm)}）去${s.city} · ${s.name}，这个时段最合适</b>
+        <span>农历${lunarName(ti.ld)} · ${ti.type} · ${season.name}　备选：${bw.picked.slice(1).map(p=>hhmm(p.start)+"–"+hhmm(p.end)).join(" / ")}</span>
+      </div>
+      <div class="answer-score">
+        <div class="n">${score}</div>
+        <div class="l">钓鱼指数</div>
+        <div style="margin-top:6px"><span class="tag ${verdict[1]==="green"?"green":verdict[1]==="red"?"red":verdict[1]==="sand"?"sand":"teal"}">${verdict[0]}</span></div>
+      </div>
+    </div>
+    <div class="answer-why">
+      <div class="why-item"><div class="t">🌊 潮水（占 45%）</div><div class="v">${tideComment(ti, main)}</div></div>
+      <div class="why-item"><div class="t">🌡 水温（占 35%）</div><div class="v">${waterComment(sst)}</div></div>
+      <div class="why-item"><div class="t">🎏 风向（占 20%）</div><div class="v">${windComment(w)}</div></div>
+      <div class="why-item"><div class="t">🌅 晨昏加成</div><div class="v">${(main.start>=5&&main.start<=8)?"推荐时段落在黎明弱光窗口，与潮汐窗口乘性叠加，是全天概率峰值":(main.start>=15&&main.start<=19)?"推荐时段落在黄昏弱光窗口，与潮汐窗口乘性叠加，是全天概率峰值":"推荐时段不在晨昏窗口；若能起早，05–08 点黎明段通常还有一波口"}</div></div>
+    </div>
+    <div class="answer-row">
+      <span class="pill">⚠ 安全：<b>${safetyLine(s, ti)}</b></span>
+      <span class="pill">🐟 当季目标：<b>${fish.join("、")}</b></span>
+      ${w.uv!=null?`<span class="pill">☀️ 紫外线 <b>${Math.round(w.uv)} · ${uvText(w.uv)}</b>${w.uv>=6?"，SPF50+ 防晒必备":w.uv>=3?"，注意防晒":""}</span>`:""}
+      ${w.rain!=null&&w.rain>=30?`<span class="pill">🌧 降水概率 <b>${w.rain}%</b>${w.rain>=60?"，带雨衣防雷暴":""}</span>`:""}
+      <span class="pill">🅿 <b>${s.parking}</b></span>
+    </div>
+    <div class="answer-acts">
+      <button class="btn" onclick="wzGoCurve()">查看全天 24h 曲线</button>
+      <button class="btn ghost" onclick="wzShare()">生成分享卡约钓</button>
+    </div>
+    <div style="font-size:11.5px;color:var(--dim);margin-top:10px">${
+      w.src==="实时"
+        ? `气象：Open-Meteo 实时预报（${s.name}坐标 · ${REAL.time?pad(REAL.time.getHours())+":"+pad(REAL.time.getMinutes()):""}更新，含风/气压/浪高/紫外线/降水）${w.wave!=null?" · 浪高约 "+w.wave+" m":""}`
+        : w.src==="缓存"
+        ? `气象：本地缓存（${REAL.time?(REAL.time.getMonth()+1)+"月"+REAL.time.getDate()+"日 "+pad(REAL.time.getHours())+":"+pad(REAL.time.getMinutes()):""}拉取）· 当前离线或实时源不可用，联网后自动更新${w.wave!=null?" · 浪高约 "+w.wave+" m":""}`
+        : REAL.loading ? "气象：⏳ 正在拉取实时预报…（暂时按模拟估算，到达后自动更新）" : "气象：实时源暂不可用且无本地缓存，使用模拟数据（联网后自动切换）"
+    } · 潮汐时刻与潮高：国家海洋信息中心实测表（覆盖期内）+ 全日潮模型 · 水温：站点预报/多年月均 · 指数为相对排序参考，相邻几分之差无意义</div>
+    <div id="wzShareBox"></div>`;
+  // 与下方进阶模块联动：地图、曲线、安全模块同步到这个钓点
+  if(curveSpotId!==s.id) selectSpot(s.id,false);
+  // 触发实时天气拉取（有缓存且是同一钓点则跳过）
+  if(!REAL.loading && (REAL.spot!==s.id || !REAL.time || (Date.now()-REAL.time.getTime())>30*60000)) fetchRealWeather(s.id);
+}
+/* 实时数据到达后联动刷新各视图 */
+function refreshRealtimeViews(spotId){
+  if(typeof wz!=="undefined" && wz.spot===spotId) renderWzResult();
+  renderCurve();
+}
+function wzGoCurve(){ document.querySelector("#s5").scrollIntoView({behavior:"smooth"}); }
+function wzShare(){
+  const s = SPOTS.find(x=>x.id===wz.spot);
+  const tm = addDays(TODAY,1);
+  const bw = bestWindows(tm, s);
+  const d = { tm, s, bw, ti:bw.ti, w:bw.w, sst:bw.sst, season:bw.season, main:bw.picked[0],
+    fish: FISH.filter(f=>monthInSeason(f,tm.getMonth()+1) && s.fish.some(x=>f.name.includes(x))).map(f=>f.name) };
+  if(!d.fish.length) d.fish = s.fish.slice(0,2);
+  $("wzShareBox").innerHTML = `
+    <canvas id="wzShareCanvas" width="600" height="780"></canvas>
+    <div style="margin-top:10px"><button class="btn" onclick="wzDownload()">⬇ 保存分享卡 PNG</button></div>
+    <div style="font-size:11.5px;color:var(--dim);margin-top:6px">iPhone 如未自动下载：长按图片 → 存储到"照片"</div>`;
+  drawShareCard(d, `${s.city}${s.name.replace(/（.*?）/g,"")}`, "wzShareCanvas");
+  $("wzShareCanvas").scrollIntoView({behavior:"smooth", block:"center"});
+}
+function wzDownload(){
+  const s = SPOTS.find(x=>x.id===wz.spot);
+  const a = document.createElement("a");
+  a.download = `海钓计划_${s.name.replace(/（.*?）/g,"")}.png`;
+  a.href = $("wzShareCanvas").toDataURL("image/png");
+  a.click();
+}
+
+/* =========================================================
+   初始化
+   ========================================================= */
+function init(){
+  buildWizard();
+  buildMap(); buildSpotList(); highlightDots();
+  selectSpot("waisha", false);
+  buildCalendar();
+  renderNowTide(); buildTideTable();
+  renderCurve();
+  buildFish();
+  segBuild("gearMethod", GEAR_METHODS, gear.method, v=>{gear.method=v;renderGear();});
+  segBuild("gearWeather", GEAR_WEATHERS, gear.weather, v=>{gear.weather=v;renderGear();});
+  segBuild("gearExp", ["新手","进阶","老手"], gear.exp, v=>{gear.exp=v;renderGear();});
+  renderGear();
+  buildLogForm();
+  fetchRealWeather("waisha"); // 首屏默认钓点预拉实时预报
+}
+window.addEventListener("resize", ()=>renderCurve());
+init();
+</script>
+
+
+
+</body>
+</html>

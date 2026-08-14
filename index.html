@@ -390,6 +390,10 @@ input[type=range]::-moz-range-thumb{
 .log-form input[type=date],.log-form select{background:var(--bg);border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:13.5px}
 .log-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:var(--panel);font-size:13px}
 .log-del{background:none;border:0;color:var(--dim);font-size:16px;cursor:pointer;padding:0 4px}
+.photo-pick{font-size:13px;padding:9px 14px;white-space:nowrap}
+.log-thumb{width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--line2);cursor:pointer;flex:none}
+.log-view{position:fixed;inset:0;background:rgba(4,10,13,.93);display:flex;align-items:center;justify-content:center;z-index:200;padding:18px;cursor:zoom-out}
+.log-view img{max-width:100%;max-height:100%;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
 .log-del:hover{color:var(--red)}
 @media(max-width:640px){.log-form>*{flex:1 1 40%}}
 
@@ -627,6 +631,9 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
       <div class="seg-btns" id="logResult">
         <button data-r="爆护">爆护</button><button data-r="有口" class="on">有口</button><button data-r="空军">空军</button>
       </div>
+      <label class="btn ghost photo-pick" for="logPhoto">📷 加鱼获照</label>
+      <input type="file" id="logPhoto" accept="image/*" hidden>
+      <div id="logPhotoPreview" style="display:flex;align-items:center;gap:8px"></div>
       <button class="btn" id="logAdd">记一笔</button>
       <button class="btn ghost" id="logExport">导出 CSV</button>
     </div>
@@ -1601,7 +1608,33 @@ document.querySelectorAll(".drawer-head").forEach(h=>h.onclick=()=>h.parentEleme
    ========================================================= */
 const LOG_KEY = "hf_logs";
 function loadLogs(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY))||[]; }catch(e){ return []; } }
-function saveLogs(a){ try{ localStorage.setItem(LOG_KEY, JSON.stringify(a)); }catch(e){} }
+function saveLogs(a){ try{ localStorage.setItem(LOG_KEY, JSON.stringify(a)); return true; }catch(e){ return false; } }
+/* 鱼获照：压缩到长边 720px JPEG（约 100–200KB）再存 localStorage */
+let logPhoto = null;
+function pickLogPhoto(file){
+  if(!file) return;
+  const img = new Image();
+  img.onload = ()=>{
+    const k = Math.min(1, 720/Math.max(img.width, img.height));
+    const cv = document.createElement("canvas");
+    cv.width = Math.round(img.width*k); cv.height = Math.round(img.height*k);
+    cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+    logPhoto = cv.toDataURL("image/jpeg", 0.72);
+    URL.revokeObjectURL(img.src);
+    $("logPhotoPreview").innerHTML = `<img class="log-thumb" src="${logPhoto}" alt="预览"><button type="button" class="log-del" id="logPhotoClear" title="移除照片">×</button>`;
+    $("logPhotoClear").onclick = ()=>{ logPhoto = null; $("logPhoto").value = ""; $("logPhotoPreview").innerHTML = ""; };
+  };
+  img.src = URL.createObjectURL(file);
+}
+function viewLogPhoto(t){
+  const l = loadLogs().find(x=>x.t===t);
+  if(!l || !l.img) return;
+  const ov = document.createElement("div");
+  ov.className = "log-view";
+  ov.innerHTML = `<img src="${l.img}" alt="鱼获照">`;
+  ov.onclick = ()=>ov.remove();
+  document.body.appendChild(ov);
+}
 function buildLogForm(){
   $("logDate").value = dateKey(new Date());
   const sp = $("logSpot");
@@ -1612,6 +1645,7 @@ function buildLogForm(){
   });
   $("logAdd").onclick = addLog;
   $("logExport").onclick = exportLogs;
+  $("logPhoto").onchange = e => pickLogPhoto(e.target.files[0]);
   renderLogs();
 }
 function addLog(){
@@ -1620,8 +1654,16 @@ function addLog(){
   if(!d || !sid || !rb) return;
   const s = SPOTS.find(x=>x.id===sid);
   const logs = loadLogs();
-  logs.unshift({d, sid, city:s.city, name:s.name, win:$("logWindow").value, r:rb.dataset.r, t:Date.now()});
-  saveLogs(logs); renderLogs();
+  const entry = {d, sid, city:s.city, name:s.name, win:$("logWindow").value, r:rb.dataset.r, t:Date.now()};
+  if(logPhoto) entry.img = logPhoto;
+  logs.unshift(entry);
+  if(!saveLogs(logs)){
+    delete logs[0].img;  // 存储满了：降级为纯文字记录再试一次
+    if(saveLogs(logs)) alert("手机存储空间不足，本次只保存了文字（照片未存）");
+    else { alert("存储空间已满，记录未保存，可先删除几条旧记录"); return; }
+  }
+  logPhoto = null; $("logPhoto").value = ""; $("logPhotoPreview").innerHTML = "";
+  renderLogs();
   const btn = $("logAdd"); btn.textContent = "✓ 已记下"; btn.disabled = true;
   setTimeout(()=>{ btn.textContent = "记一笔"; btn.disabled = false; }, 1200);
 }
@@ -1633,12 +1675,13 @@ function renderLogs(){
     stat.textContent=""; return;
   }
   const good = logs.filter(l=>l.r==="爆护").length, mid = logs.filter(l=>l.r==="有口").length;
-  stat.textContent = `共 ${logs.length} 次出钓 · 爆护 ${good} 次（${Math.round(good/logs.length*100)}%）· 有口 ${mid} 次 · 空军 ${logs.length-good-mid} 次`;
+  stat.textContent = `共 ${logs.length} 次出钓 · 爆护 ${good} 次（${Math.round(good/logs.length*100)}%）· 有口 ${mid} 次 · 空军 ${logs.length-good-mid} 次 · 📷 ${logs.filter(l=>l.img).length} 张`;
   const badge = r => r==="爆护"?'<span class="tag green">爆护</span>':r==="有口"?'<span class="tag teal">有口</span>':'<span class="tag">空军</span>';
   box.innerHTML = logs.slice(0,30).map(l=>`
     <div class="log-item">
       <span class="mono" style="color:var(--mut)">${l.d}</span>
       <span style="flex:1">${l.city} · ${l.name}　<span style="color:var(--dim);font-size:12px">${l.win||""}</span></span>
+      ${l.img?`<img class="log-thumb" src="${l.img}" onclick="viewLogPhoto(${l.t})" alt="鱼获照">`:""}
       ${badge(l.r)}
       <button class="log-del" onclick="delLog(${l.t})" title="删除">×</button>
     </div>`).join("");

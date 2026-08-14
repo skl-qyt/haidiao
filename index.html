@@ -394,6 +394,8 @@ input[type=range]::-moz-range-thumb{
 .log-thumb{width:44px;height:44px;object-fit:cover;border-radius:8px;border:1px solid var(--line2);cursor:pointer;flex:none}
 .log-view{position:fixed;inset:0;background:rgba(4,10,13,.93);display:flex;align-items:center;justify-content:center;z-index:200;padding:18px;cursor:zoom-out}
 .log-view img{max-width:100%;max-height:100%;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.log-photo-btn{background:none;border:0;font-size:15px;cursor:pointer;padding:0 4px;opacity:.6;transition:.12s}
+.log-photo-btn:hover{opacity:1}
 .log-del:hover{color:var(--red)}
 @media(max-width:640px){.log-form>*{flex:1 1 40%}}
 
@@ -1611,20 +1613,41 @@ function loadLogs(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY))||[]; 
 function saveLogs(a){ try{ localStorage.setItem(LOG_KEY, JSON.stringify(a)); return true; }catch(e){ return false; } }
 /* 鱼获照：压缩到长边 720px JPEG（约 100–200KB）再存 localStorage */
 let logPhoto = null;
-function pickLogPhoto(file){
-  if(!file) return;
+function compressImage(file, cb){
   const img = new Image();
   img.onload = ()=>{
     const k = Math.min(1, 720/Math.max(img.width, img.height));
     const cv = document.createElement("canvas");
     cv.width = Math.round(img.width*k); cv.height = Math.round(img.height*k);
     cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
-    logPhoto = cv.toDataURL("image/jpeg", 0.72);
     URL.revokeObjectURL(img.src);
-    $("logPhotoPreview").innerHTML = `<img class="log-thumb" src="${logPhoto}" alt="预览"><button type="button" class="log-del" id="logPhotoClear" title="移除照片">×</button>`;
-    $("logPhotoClear").onclick = ()=>{ logPhoto = null; $("logPhoto").value = ""; $("logPhotoPreview").innerHTML = ""; };
+    cb(cv.toDataURL("image/jpeg", 0.72));
   };
   img.src = URL.createObjectURL(file);
+}
+function pickLogPhoto(file){
+  if(!file) return;
+  compressImage(file, dataUrl=>{
+    logPhoto = dataUrl;
+    $("logPhotoPreview").innerHTML = `<img class="log-thumb" src="${logPhoto}" alt="预览"><button type="button" class="log-del" id="logPhotoClear" title="移除照片">×</button>`;
+    $("logPhotoClear").onclick = ()=>{ logPhoto = null; $("logPhoto").value = ""; $("logPhotoPreview").innerHTML = ""; };
+  });
+}
+/* 给已保存的记录补照片 / 换照片 */
+function pickForLog(t){
+  const inp = document.createElement("input");
+  inp.type = "file"; inp.accept = "image/*";
+  inp.onchange = e=>{
+    const f = e.target.files[0]; if(!f) return;
+    compressImage(f, dataUrl=>{
+      const logs = loadLogs();
+      const l = logs.find(x=>x.t===t); if(!l) return;
+      l.img = dataUrl;
+      if(!saveLogs(logs)){ delete l.img; alert("存储空间不足，照片未保存"); }
+      renderLogs();
+    });
+  };
+  inp.click();
 }
 function viewLogPhoto(t){
   const l = loadLogs().find(x=>x.t===t);
@@ -1683,6 +1706,7 @@ function renderLogs(){
       <span style="flex:1">${l.city} · ${l.name}　<span style="color:var(--dim);font-size:12px">${l.win||""}</span></span>
       ${l.img?`<img class="log-thumb" src="${l.img}" onclick="viewLogPhoto(${l.t})" alt="鱼获照">`:""}
       ${badge(l.r)}
+      <button class="log-photo-btn" onclick="pickForLog(${l.t})" title="${l.img?"更换照片":"补张照片"}">📷</button>
       <button class="log-del" onclick="delLog(${l.t})" title="删除">×</button>
     </div>`).join("");
 }

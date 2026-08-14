@@ -459,9 +459,9 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
     <span class="sub">广西沿海 · 智能钓鱼推荐</span>
   </div>
   <nav class="nav">
-    <a href="#s0">问明天</a><a href="#s5">曲线</a><a href="#s2">钓点</a>
+    <a href="#s0">问明天</a><a href="#s11">记录</a><a href="#s5">曲线</a><a href="#s2">钓点</a>
     <a href="#s3">潮汐</a>
-    <a href="#s8">鱼种</a><a href="#s9">装备</a><a href="#s11">记录</a>
+    <a href="#s8">鱼种</a>
   </nav>
 </header>
 
@@ -491,13 +491,43 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
     </div>
     <div class="wz-result" id="wzResult"></div>
   </div>
-  <div class="nx" style="margin-top:14px">下面是进阶工具：全天曲线、交互地图、潮汐预报、鱼种图谱、装备清单、作钓记录……想用的时候再展开。</div>
+  <div class="nx" style="margin-top:14px">下面是进阶工具：作钓记录、全天曲线、交互地图、潮汐预报、鱼种图谱……想用的时候再展开。</div>
+</section>
+
+<!-- ============ 模块六 ============ -->
+<section id="s11">
+  <div class="sec-head">
+    <div class="sec-no">MODULE 01</div>
+    <h2>作钓记录</h2>
+    <p class="desc">钓完花 5 秒记一笔，只存在本机浏览器里。攒够 20 次，就能用你自己的数据校准推荐指数——这比任何通用模型都准。</p>
+  </div>
+  <div class="card">
+    <div class="log-form">
+      <input type="date" id="logDate">
+      <select id="logSpot"></select>
+      <select id="logWindow">
+        <option>清晨 05–08</option><option>上午 08–12</option><option>下午 12–17</option><option>傍晚 17–20</option><option>夜钓 20–24</option>
+      </select>
+      <div class="seg-btns" id="logResult">
+        <button data-r="爆护" title="10 条以上；钓到单尾巨物也算爆护">爆护 10+</button><button data-r="丰收" title="6 到 9 条">丰收 6–9</button><button data-r="有口" class="on" title="3 到 5 条">有口 3–5</button><button data-r="零星" title="1 到 2 条">零星 1–2</button><button data-r="空军" title="一条都没有">空军 0</button>
+      </div>
+      <input type="text" id="logNote" placeholder="鱼获详情（选填）：石斑 2 条、最大 3 斤、用的沙蚕…" maxlength="60" style="flex:1 1 100%">
+      <label class="btn ghost photo-pick" for="logPhoto">📷 加鱼获照</label>
+      <input type="file" id="logPhoto" accept="image/*" hidden>
+      <div id="logPhotoPreview" style="display:flex;align-items:center;gap:8px"></div>
+      <button class="btn" id="logAdd">记一笔</button>
+      <button class="btn ghost" id="logExport">导出 CSV</button>
+    </div>
+    <div class="nx" id="logStat" style="margin:10px 0 6px"></div>
+    <div class="nx" id="logGold" style="margin:0 0 6px;color:var(--teal);display:none"></div>
+    <div id="logList"></div>
+  </div>
 </section>
 
 <!-- ============ 模块一 ============ -->
 <section id="s5">
   <div class="sec-head">
-    <div class="sec-no">MODULE 01</div>
+    <div class="sec-no">MODULE 02</div>
     <h2>全天评分曲线 · 05:00 – 22:00</h2>
     <p class="desc">每小时一个钓鱼指数（潮汐 45% + 水温 35% + 风向 20%，叠加晨昏窗口加成与季节修正；气压不参评——大样本统计未见显著效应）。系统自动标出主推荐时段和两个备选时段；切换日期对比三天曲线。当前查看钓点：<b id="curveSpotName" style="color:var(--teal)">北海 · 外沙岛</b>（在地图里点选钓点可切换）。</p>
   </div>
@@ -515,7 +545,7 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
 <!-- ============ 模块二 ============ -->
 <section id="s2">
   <div class="sec-head">
-    <div class="sec-no">MODULE 02</div>
+    <div class="sec-no">MODULE 03</div>
     <h2>广西沿海钓点交互地图</h2>
     <p class="desc">点击地图上的钓点或右侧列表查看详情；勾选任意两个钓点的"对比"框，横向对比明天的潮汐与天气适配度。</p>
   </div>
@@ -544,7 +574,7 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
 <!-- ============ 模块三 ============ -->
 <section id="s3">
   <div class="sec-head">
-    <div class="sec-no">MODULE 03</div>
+    <div class="sec-no">MODULE 04</div>
     <h2>潮汐预报 · 大潮日历与逐日实测表</h2>
     <p class="desc">潮高取北海港实测预报（国家海洋信息中心），超出覆盖期由全日潮模型估算。<b>中潮活汛最适合出钓</b>：初三、十八前后大潮流急鱼口猛，初八、廿三前后小潮死汛鱼口轻。</p>
   </div>
@@ -564,7 +594,7 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
 <!-- ============ 模块四 ============ -->
 <section id="s8">
   <div class="sec-head">
-    <div class="sec-no">MODULE 04</div>
+    <div class="sec-no">MODULE 05</div>
     <h2>鱼种季节动态图谱</h2>
     <p class="desc">按月查看广西沿海目标鱼种分布。<span style="color:var(--teal)">当季推荐</span> · <span style="color:var(--sand)">即将进入旺季</span> · <span style="color:var(--dim)">过季</span>。月份按钮下划线 = 当月综合评级（<span style="color:var(--sand)">金 ★5</span> / <span style="color:var(--teal)">青 ★4</span> / 灰 ★3 / 暗 ★2）。点击鱼种展开钓法、饵料与常见体型。</p>
   </div>
@@ -574,77 +604,7 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
   <div class="fish-grid" id="fishGrid"></div>
 </section>
 
-<!-- ============ 模块五 ============ -->
-<section id="s9">
-  <div class="sec-head">
-    <div class="sec-no">MODULE 05</div>
-    <h2>装备建议引擎 · 拆解</h2>
-    <p class="desc">根据钓法 + 天气 + 经验等级输出清单，三个抽屉可展开，支持一键复制。</p>
-  </div>
-  <div class="gear-layout">
-    <div class="card">
-      <div class="slider-row">
-        <label>钓法</label>
-        <div class="seg-btns" id="gearMethod"></div>
-      </div>
-      <div class="slider-row">
-        <label>天气</label>
-        <div class="seg-btns" id="gearWeather"></div>
-      </div>
-      <div class="slider-row">
-        <label>经验等级</label>
-        <div class="seg-btns" id="gearExp"></div>
-      </div>
-      <button class="btn" id="copyGear" style="width:100%;margin-top:6px">📋 一键复制装备清单</button>
-      <span class="copy-ok" id="copyOk"></span>
-    </div>
-    <div>
-      <div class="drawer open" id="drMust">
-        <div class="drawer-head">新手必带（安全件，少一样都别出海）<span class="arrow">▼</span></div>
-        <div class="drawer-body" id="gearMust"></div>
-      </div>
-      <div class="drawer open" id="drMethod">
-        <div class="drawer-head">钓法装备<span class="arrow">▼</span></div>
-        <div class="drawer-body" id="gearMethodList"></div>
-      </div>
-      <div class="drawer open" id="drWeather">
-        <div class="drawer-head">天气适配<span class="arrow">▼</span></div>
-        <div class="drawer-body" id="gearWeatherList"></div>
-      </div>
-    </div>
-  </div>
-</section>
 
-
-<!-- ============ 模块六 ============ -->
-<section id="s11">
-  <div class="sec-head">
-    <div class="sec-no">MODULE 06</div>
-    <h2>作钓记录</h2>
-    <p class="desc">钓完花 5 秒记一笔，只存在本机浏览器里。攒够 20 次，就能用你自己的数据校准推荐指数——这比任何通用模型都准。</p>
-  </div>
-  <div class="card">
-    <div class="log-form">
-      <input type="date" id="logDate">
-      <select id="logSpot"></select>
-      <select id="logWindow">
-        <option>清晨 05–08</option><option>上午 08–12</option><option>下午 12–17</option><option>傍晚 17–20</option><option>夜钓 20–24</option>
-      </select>
-      <div class="seg-btns" id="logResult">
-        <button data-r="爆护" title="10 条以上；钓到单尾巨物也算爆护">爆护 10+</button><button data-r="丰收" title="6 到 9 条">丰收 6–9</button><button data-r="有口" class="on" title="3 到 5 条">有口 3–5</button><button data-r="零星" title="1 到 2 条">零星 1–2</button><button data-r="空军" title="一条都没有">空军 0</button>
-      </div>
-      <input type="text" id="logNote" placeholder="鱼获详情（选填）：石斑 2 条、最大 3 斤、用的沙蚕…" maxlength="60" style="flex:1 1 100%">
-      <label class="btn ghost photo-pick" for="logPhoto">📷 加鱼获照</label>
-      <input type="file" id="logPhoto" accept="image/*" hidden>
-      <div id="logPhotoPreview" style="display:flex;align-items:center;gap:8px"></div>
-      <button class="btn" id="logAdd">记一笔</button>
-      <button class="btn ghost" id="logExport">导出 CSV</button>
-    </div>
-    <div class="nx" id="logStat" style="margin:10px 0 6px"></div>
-    <div class="nx" id="logGold" style="margin:0 0 6px;color:var(--teal);display:none"></div>
-    <div id="logList"></div>
-  </div>
-</section>
 
 </div><!-- /wrap -->
 
@@ -1590,22 +1550,7 @@ function renderGear(){
   $("gearWeatherList").innerHTML = GEAR.weather[gear.weather].map(t=>li(t)).join("");
   $("copyOk").textContent="";
 }
-$("copyGear").onclick = async ()=>{
-  const lines = [
-    `【海钓装备清单】${gear.method} · ${gear.weather} · ${gear.exp}`,
-    "", "■ 新手必带（安全件）", ...GEAR.must.map(t=>"□ "+t),
-    "", `■ 钓法装备（${gear.method}）`, ...GEAR.method[gear.method].map(t=>"□ "+t),
-    "", `■ 天气适配（${gear.weather}）`, ...GEAR.weather[gear.weather].map(t=>"□ "+t),
-    "", "—— 海钓时刻助手 · 广西沿海",
-  ].join("\n");
-  try{ await navigator.clipboard.writeText(lines); $("copyOk").textContent="✓ 已复制到剪贴板"; }
-  catch(e){
-    const ta=document.createElement("textarea"); ta.value=lines; document.body.appendChild(ta); ta.select();
-    try{ document.execCommand("copy"); $("copyOk").textContent="✓ 已复制到剪贴板"; }
-    catch(e2){ $("copyOk").textContent="复制失败，请手动选择文本"; }
-    ta.remove();
-  }
-};
+
 document.querySelectorAll(".drawer-head").forEach(h=>h.onclick=()=>h.parentElement.classList.toggle("open"));
 
 /* =========================================================
@@ -1945,10 +1890,6 @@ function init(){
   renderNowTide(); buildTideTable();
   renderCurve();
   buildFish();
-  segBuild("gearMethod", GEAR_METHODS, gear.method, v=>{gear.method=v;renderGear();});
-  segBuild("gearWeather", GEAR_WEATHERS, gear.weather, v=>{gear.weather=v;renderGear();});
-  segBuild("gearExp", ["新手","进阶","老手"], gear.exp, v=>{gear.exp=v;renderGear();});
-  renderGear();
   buildLogForm();
   fetchRealWeather("waisha"); // 首屏默认钓点预拉实时预报
 }

@@ -631,8 +631,9 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
         <option>清晨 05–08</option><option>上午 08–12</option><option>下午 12–17</option><option>傍晚 17–20</option><option>夜钓 20–24</option>
       </select>
       <div class="seg-btns" id="logResult">
-        <button data-r="爆护">爆护</button><button data-r="有口" class="on">有口</button><button data-r="空军">空军</button>
+        <button data-r="爆护">爆护</button><button data-r="丰收">丰收</button><button data-r="有口" class="on">有口</button><button data-r="零星">零星</button><button data-r="空军">空军</button>
       </div>
+      <input type="text" id="logNote" placeholder="鱼获详情（选填）：石斑 2 条、最大 3 斤、用的沙蚕…" maxlength="60" style="flex:1 1 100%">
       <label class="btn ghost photo-pick" for="logPhoto">📷 加鱼获照</label>
       <input type="file" id="logPhoto" accept="image/*" hidden>
       <div id="logPhotoPreview" style="display:flex;align-items:center;gap:8px"></div>
@@ -1677,7 +1678,7 @@ function addLog(){
   if(!d || !sid || !rb) return;
   const s = SPOTS.find(x=>x.id===sid);
   const logs = loadLogs();
-  const entry = {d, sid, city:s.city, name:s.name, win:$("logWindow").value, r:rb.dataset.r, t:Date.now()};
+  const entry = {d, sid, city:s.city, name:s.name, win:$("logWindow").value, r:rb.dataset.r, note:$("logNote").value.trim(), t:Date.now()};
   if(logPhoto) entry.img = logPhoto;
   logs.unshift(entry);
   if(!saveLogs(logs)){
@@ -1685,7 +1686,7 @@ function addLog(){
     if(saveLogs(logs)) alert("手机存储空间不足，本次只保存了文字（照片未存）");
     else { alert("存储空间已满，记录未保存，可先删除几条旧记录"); return; }
   }
-  logPhoto = null; $("logPhoto").value = ""; $("logPhotoPreview").innerHTML = "";
+  logPhoto = null; $("logPhoto").value = ""; $("logPhotoPreview").innerHTML = ""; $("logNote").value = "";
   renderLogs();
   const btn = $("logAdd"); btn.textContent = "✓ 已记下"; btn.disabled = true;
   setTimeout(()=>{ btn.textContent = "记一笔"; btn.disabled = false; }, 1200);
@@ -1697,13 +1698,15 @@ function renderLogs(){
     box.innerHTML = `<div class="nx" style="margin:0">还没有记录。钓完回来花 5 秒记一笔，攒够 20 次就能看出「你的」鱼口规律。</div>`;
     stat.textContent=""; return;
   }
-  const good = logs.filter(l=>l.r==="爆护").length, mid = logs.filter(l=>l.r==="有口").length;
-  stat.textContent = `共 ${logs.length} 次出钓 · 爆护 ${good} 次（${Math.round(good/logs.length*100)}%）· 有口 ${mid} 次 · 空军 ${logs.length-good-mid} 次 · 📷 ${logs.filter(l=>l.img).length} 张`;
-  const badge = r => r==="爆护"?'<span class="tag green">爆护</span>':r==="有口"?'<span class="tag teal">有口</span>':'<span class="tag">空军</span>';
+  const cnt = t => logs.filter(l=>l.r===t).length;
+  const good = cnt("爆护") + cnt("丰收");
+  stat.textContent = `共 ${logs.length} 次出钓 · 好收获（爆护+丰收）${good} 次（${Math.round(good/logs.length*100)}%）· 有口 ${cnt("有口")} · 零星 ${cnt("零星")} · 空军 ${cnt("空军")} · 📷 ${logs.filter(l=>l.img).length} 张`;
+  const BADGE = {"爆护":"green","丰收":"teal","有口":"sand","零星":"","空军":""};
+  const badge = r => `<span class="tag ${BADGE[r]||""}">${r}</span>`;
   box.innerHTML = logs.slice(0,30).map(l=>`
     <div class="log-item">
       <span class="mono" style="color:var(--mut)">${l.d}</span>
-      <span style="flex:1">${l.city} · ${l.name}　<span style="color:var(--dim);font-size:12px">${l.win||""}</span></span>
+      <span style="flex:1">${l.city} · ${l.name}　<span style="color:var(--dim);font-size:12px">${l.win||""}${l.note?"｜"+l.note:""}</span></span>
       ${l.img?`<img class="log-thumb" src="${l.img}" onclick="viewLogPhoto(${l.t})" alt="鱼获照">`:""}
       ${badge(l.r)}
       <button class="log-photo-btn" onclick="pickForLog(${l.t})" title="${l.img?"更换照片":"补张照片"}">📷</button>
@@ -1713,7 +1716,7 @@ function renderLogs(){
 function exportLogs(){
   const logs = loadLogs();
   if(!logs.length){ $("logStat").textContent="暂无记录可导出"; return; }
-  const rows = [["日期","城市","钓点","时段","鱼获"], ...logs.map(l=>[l.d,l.city,l.name,l.win||"",l.r])];
+  const rows = [["日期","城市","钓点","时段","鱼获","备注"], ...logs.map(l=>[l.d,l.city,l.name,l.win||"",l.r,l.note||""])];
   const csv = "\ufeff" + rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\r\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));

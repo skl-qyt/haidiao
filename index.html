@@ -529,7 +529,7 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
   <div class="sec-head">
     <div class="sec-no">MODULE 02</div>
     <h2>全天评分曲线 · 05:00 – 22:00</h2>
-    <p class="desc">每小时一个钓鱼指数（潮汐 45% + 水温 35% + 风向 20%，叠加晨昏窗口加成与季节修正；气压不参评——大样本统计未见显著效应）。系统自动标出主推荐时段和两个备选时段；切换日期对比三天曲线。当前查看钓点：<b id="curveSpotName" style="color:var(--teal)">北海 · 外沙岛</b>（在地图里点选钓点可切换）。</p>
+    <p class="desc">每小时一个钓鱼指数（潮汐 45% + 水温 35% + 风向 20%，叠加晨昏窗口、阴天弱光半加成与季节修正；降水概率 ≥60% 施加安全折扣；气压不参评——大样本统计未见显著效应）。系统自动标出主推荐时段和两个备选时段；切换日期对比三天曲线。当前查看钓点：<b id="curveSpotName" style="color:var(--teal)">北海 · 外沙岛</b>（在地图里点选钓点可切换）。</p>
   </div>
   <div class="chart-box">
     <div class="day-tabs" id="dayTabs">
@@ -611,7 +611,7 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
 <footer>
   <div class="wrap">
     <p><b style="color:var(--mut)">海钓时刻助手</b> · 广西沿海智能钓鱼推荐系统</p>
-    <p style="margin-top:8px">数据底座：潮汐类型、水温统计、渔汛规律与钓点信息取自《广西沿海海钓深度调研报告》（2026-08）；评分模型按《潮水、水温、天气对鱼类开口概率的影响》研究报告（2026-08）校准——潮汐 45% + 水温 35% + 风向 20%，叠加晨昏窗口与季节修正；气压不参评（大样本统计未见显著效应）。逐日潮汐为北海港实测预报（覆盖期内）/ 全日潮模型推算，天气为 Open-Meteo 实时预报。南海伏季休渔（5.1—8.16）钓具除外，休闲海钓全年合法；北海—涠洲浅海为二长棘鲷幼鱼保护区，请放流小规格渔获。出海前请以国家海洋信息中心潮汐表、气象预警为准。安全第一，永不独自夜钓礁石区。</p>
+    <p style="margin-top:8px">数据底座：潮汐类型、水温统计、渔汛规律与钓点信息取自《广西沿海海钓深度调研报告》（2026-08）；评分模型按《潮水、水温、天气对鱼类开口概率的影响》研究报告（2026-08）校准并经全球文献复核——潮汐 45% + 水温 35% + 风向 20%，叠加晨昏窗口、阴天弱光半加成（UV 峰值<3）与季节修正；降水概率 ≥60% 施加安全折扣；气压不参评（Stoner 2004 综述：无对照研究证实气压影响钓获）。逐日潮汐为北海港实测预报（覆盖期内）/ 全日潮模型推算，天气为 Open-Meteo 实时预报。南海伏季休渔（5.1—8.16）钓具除外，休闲海钓全年合法；北海—涠洲浅海为二长棘鲷幼鱼保护区，请放流小规格渔获。出海前请以国家海洋信息中心潮汐表、气象预警为准。安全第一，永不独自夜钓礁石区。</p>
   </div>
 </footer>
 
@@ -910,9 +910,9 @@ function seasonFishing(date){
   else if(m===8) s.note += "；已开渔，资源密度进入恢复通道";
   return s;
 }
-/* 综合指数（2026-08 研究报告校准）：
-   潮汐 45% + 水温 35% + 风向 20%，叠加季节修正与晨昏窗口；
-   气压不参评——12 年渔获普查与 4000+ 次出钓统计均无显著效应（±20 hPa 仅折合约 20 cm 水柱） */
+/* 综合指数（2026-08 研究报告校准，2026-08-14 文献复核）：
+   潮汐 45% + 水温 35% + 风向 20%，叠加季节修正、晨昏窗口、阴天弱光半加成与大雨安全折扣；
+   气压不参评——Stoner 2004 综述：气压与钓获率的关系无对照研究证实 */
 function fishIndex(t, w, ti, sst, bonus){
   const tide = tideScore(t, ti.highClock, ti.sp);
   const wind = windScore(w.windDir, w.windForce);
@@ -920,10 +920,15 @@ function fishIndex(t, w, ti, sst, bonus){
   let total = Math.round(0.45*tide + 0.20*wind + 0.35*temp + bonus);
   /* 晨昏光照窗口（较强证据：黎明/黄昏摄食峰值 P<0.05），与潮汐窗口乘性叠加 */
   if((t>=5&&t<=8)||(t>=17&&t<=19)) total = Math.round(total*1.08);
+  /* 阴天弱光延长（启发式：光照调节摄食有方向性证据但无精确系数；UV 日峰值<3 视为全天阴，
+     白天 9–16 时给晨昏加成的一半；光照过低摄食效率反降——故不叠加满额） */
+  if(w.uv!=null && w.uv<3 && t>=9 && t<=16) total = Math.round(total*1.04);
   /* 闷热低氧（溶氧链条，中等证据）：水温 ≥29℃ 且 ≤2 级风，海气交换差、溶氧上限低 */
   if(sst>=29 && w.windForce<=2) total -= 8;
   /* 大浪水浑（浊度链条，中等证据）：视觉型鱼反应距离骤降 */
   if(w.wave!=null && w.wave>=1.5) total -= 10;
+  /* 大雨安全/体验折扣（诚实标注：当天降雨对钓获无对照证据，此项是"值不值得去"的决策折扣） */
+  if(w.rain!=null && w.rain>=60) total = Math.round(total*0.85);
   return { total: Math.max(3, Math.min(99, total)), tide, wind, temp };
 }
 /* 最佳时段：3 小时滑动窗口均分，取互不重叠的 Top3（按钓点个性加权） */
@@ -1825,7 +1830,7 @@ function renderWzResult(){
       <div class="why-item"><div class="t">🌊 潮水（占 45%）</div><div class="v">${tideComment(ti, main)}</div></div>
       <div class="why-item"><div class="t">🌡 水温（占 35%）</div><div class="v">${waterComment(sst)}</div></div>
       <div class="why-item"><div class="t">🎏 风向（占 20%）</div><div class="v">${windComment(w)}</div></div>
-      <div class="why-item"><div class="t">🌅 晨昏加成</div><div class="v">${(main.start>=5&&main.start<=8)?"推荐时段落在黎明弱光窗口，与潮汐窗口乘性叠加，是全天概率峰值":(main.start>=15&&main.start<=19)?"推荐时段落在黄昏弱光窗口，与潮汐窗口乘性叠加，是全天概率峰值":"推荐时段不在晨昏窗口；若能起早，05–08 点黎明段通常还有一波口"}</div></div>
+      <div class="why-item"><div class="t">🌅 光照与天气</div><div class="v">${(main.start>=5&&main.start<=8)?"推荐时段落在黎明弱光窗口，与潮汐窗口乘性叠加，是全天概率峰值":(main.start>=15&&main.start<=19)?"推荐时段落在黄昏弱光窗口，与潮汐窗口乘性叠加，是全天概率峰值":"推荐时段不在晨昏窗口；若能起早，05–08 点黎明段通常还有一波口"}${w.uv!=null&&w.uv<3?"；明日阴天（UV 峰值<3），白天 9–16 时按弱光半加成计入":""}${w.rain!=null&&w.rain>=60?"；降水概率 "+w.rain+"%，全天指数已打 85 折（安全/体验考虑）":""}</div></div>
     </div>
     <div class="answer-row">
       <span class="pill">⚠ 安全：<b>${safetyLine(s, ti)}</b></span>

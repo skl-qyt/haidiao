@@ -641,6 +641,7 @@ footer code{color:var(--mut);background:var(--panel);padding:1px 6px;border-radi
       <button class="btn ghost" id="logExport">导出 CSV</button>
     </div>
     <div class="nx" id="logStat" style="margin:10px 0 6px"></div>
+    <div class="nx" id="logGold" style="margin:0 0 6px;color:var(--teal);display:none"></div>
     <div id="logList"></div>
   </div>
 </section>
@@ -1696,11 +1697,29 @@ function renderLogs(){
   const logs = loadLogs(), box = $("logList"), stat = $("logStat");
   if(!logs.length){
     box.innerHTML = `<div class="nx" style="margin:0">还没有记录。钓完回来花 5 秒记一笔，攒够 20 次就能看出「你的」鱼口规律。</div>`;
-    stat.textContent=""; return;
+    stat.textContent=""; const g0=$("logGold"); if(g0){ g0.style.display="none"; } return;
   }
   const cnt = t => logs.filter(l=>l.r===t).length;
   const good = cnt("爆护") + cnt("丰收");
   stat.textContent = `共 ${logs.length} 次出钓 · 好收获（爆护+丰收）${good} 次（${Math.round(good/logs.length*100)}%）· 有口 ${cnt("有口")} · 零星 ${cnt("零星")} · 空军 ${cnt("空军")} · 📷 ${logs.filter(l=>l.img).length} 张`;
+  // 黄金时段：总记录 ≥5 且该时段 ≥2 笔才参评，避免单次爆护的 100% 假象
+  const gold = $("logGold");
+  if(logs.length >= 5){
+    const WINS = ["清晨 05–08","上午 08–12","下午 12–17","傍晚 17–20","夜钓 20–24"];
+    const ranked = WINS.map(w=>{
+      const sub = logs.filter(l=>l.win===w);
+      const g = sub.filter(l=>l.r==="爆护"||l.r==="丰收").length;
+      return { w, n:sub.length, rate: sub.length ? g/sub.length : 0 };
+    }).filter(x=>x.n>=2).sort((a,b)=> b.rate-a.rate || b.n-a.n);
+    if(ranked.length && ranked[0].rate > 0){
+      const t = ranked[0];
+      gold.textContent = `⏰ 你的黄金时段：${t.w}（好收获率 ${Math.round(t.rate*100)}% · ${t.n} 次出钓）`;
+      gold.style.display = "";
+    } else gold.style.display = "none";
+  } else {
+    gold.textContent = `⏰ 再记 ${5-logs.length} 笔，开始分析你的黄金时段`;
+    gold.style.display = "";
+  }
   const BADGE = {"爆护":"green","丰收":"teal","有口":"sand","零星":"","空军":""};
   const badge = r => `<span class="tag ${BADGE[r]||""}">${r}</span>`;
   box.innerHTML = logs.slice(0,30).map(l=>`

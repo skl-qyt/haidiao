@@ -1138,7 +1138,8 @@ function buildMap(){
     dot.dataset.spot = s.id;
     const label = mk("text",{x:s.x,y:s.y-13,"text-anchor":"middle",fill:"#C7D8DC","font-size":11});
     label.textContent = s.name;
-    g.appendChild(halo); g.appendChild(dot); g.appendChild(label);
+    const hit = mk("circle",{cx:s.x,cy:s.y,r:18,fill:"transparent"}); // 隐形热区，手机点按更稳
+    g.appendChild(halo); g.appendChild(dot); g.appendChild(label); g.appendChild(hit);
     g.onclick = ()=>selectSpot(s.id,true);
     svg.appendChild(g);
     s._dot = dot; s._halo = halo;
@@ -1611,12 +1612,14 @@ document.querySelectorAll(".drawer-head").forEach(h=>h.onclick=()=>h.parentEleme
    模块六 · 作钓记录（localStorage 本地存储，可导出 CSV）
    ========================================================= */
 const LOG_KEY = "hf_logs";
+const esc = t => String(t).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function loadLogs(){ try{ return JSON.parse(localStorage.getItem(LOG_KEY))||[]; }catch(e){ return []; } }
 function saveLogs(a){ try{ localStorage.setItem(LOG_KEY, JSON.stringify(a)); return true; }catch(e){ return false; } }
 /* 鱼获照：压缩到长边 720px JPEG（约 100–200KB）再存 localStorage */
 let logPhoto = null;
 function compressImage(file, cb){
   const img = new Image();
+  img.onerror = ()=>{ URL.revokeObjectURL(img.src); alert("这张照片读取失败，换一张试试"); };
   img.onload = ()=>{
     const k = Math.min(1, 720/Math.max(img.width, img.height));
     const cv = document.createElement("canvas");
@@ -1725,12 +1728,13 @@ function renderLogs(){
   box.innerHTML = logs.slice(0,30).map(l=>`
     <div class="log-item">
       <span class="mono" style="color:var(--mut)">${l.d}</span>
-      <span style="flex:1">${l.city} · ${l.name}　<span style="color:var(--dim);font-size:12px">${l.win||""}${l.note?"｜"+l.note:""}</span></span>
+      <span style="flex:1">${l.city} · ${l.name}　<span style="color:var(--dim);font-size:12px">${l.win||""}${l.note?"｜"+esc(l.note):""}</span></span>
       ${l.img?`<img class="log-thumb" src="${l.img}" onclick="viewLogPhoto(${l.t})" alt="鱼获照">`:""}
       ${badge(l.r)}
       <button class="log-photo-btn" onclick="pickForLog(${l.t})" title="${l.img?"更换照片":"补张照片"}">📷</button>
       <button class="log-del" onclick="delLog(${l.t})" title="删除">×</button>
     </div>`).join("");
+  if(logs.length>30) box.innerHTML += `<div class="nx" style="margin-top:4px">只显示最近 30 条，更早的 ${logs.length-30} 条仍在本地，导出 CSV 可见全部。</div>`;
 }
 function exportLogs(){
   const logs = loadLogs();
